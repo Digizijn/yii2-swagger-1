@@ -1,9 +1,8 @@
 <?php
 namespace app\controllers;
-use yii\rest\ActiveController;
 
-class RelationController extends ActiveController { // TODO EO
-	public $modelClass = '\eo\models\database\Relation';
+
+class RelationController extends Rest { // TODO EO
 	public function init() {
 		$this->modelClass =	\eo\models\database\Relation::className();
 

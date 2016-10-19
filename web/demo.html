@@ -1,0 +1,199 @@
+<html>
+<head>
+	<title>EveryOffice API Demo</title>
+	<!--<script src="https://code.jquery.com/jquery-3.1.1.min.js" integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8=" crossorigin="anonymous"></script>-->
+    <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+	<script src="/swagger-client.js"></script>
+	<script type="text/javascript">
+	// initialize swagger with promise
+	var client = new SwaggerClient({
+		url: "/documentation.json",
+		usePromise: true,
+		authorizations : {
+    		easyapi_basic: new SwaggerClient.PasswordAuthorization('testapi', '#apitest!')
+		}
+	});
+	</script>
+
+
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+</head>
+<body style="padding: 50px;">
+	<h1 style="font-size: 15px;">EveryOffice API Demo</h1>
+	<div class="input"><span>Username: </span><input placeholder="username" id="input_username" name="username" value="testapi" type="text"/></div>
+	<div class="input"><span>Password: </span><input placeholder="password" id="input_password" name="password" value="#apitest!" type="text"/></div>
+
+	<br /><br />
+	<div id="objecttypes">
+		<h4>Objecttype</h4>
+		<select>
+			<option value="empty"></option>
+		</select>
+	</div>
+
+	<div id="composition">
+		<h4>Samenstelling</h4>
+		<ul></ul>
+	</div>
+
+	<div id="nights">
+		<h4>Nachten</h4>
+		<select>
+		</select>
+	</div>
+
+	<div id="facilities">
+		<h4>Faciliteiten</h4>
+		<ul></ul>
+	</div>
+
+	<div id="objects">
+		<ul></ul>
+	</div>
+
+	<script>
+		$(document).ready(function() {
+			var $objecttypesDiv 	= $("#objecttypes");
+			var $objecttypes 		= $objecttypesDiv.find("select");
+			var $compositionsDiv	= $("#composition");
+			var $compositions 		= $compositionsDiv.find("ul");
+			var $objects 			= $("#objects");
+			var $facilitiesDiv 		= $("#facilities");
+			var $facilities 		= $facilitiesDiv.find("ul");
+			var $nightsDiv 			= $("#nights");
+			var $nights		 		= $nightsDiv.find("select");
+
+			client.then(function(client) {
+				client.objecttypes.all()
+					.then(function(objecttypes) {
+						$objecttypes.empty();
+
+						$(objecttypes.obj).each(function(i, objecttype){
+							$objecttypes.append(
+								$("<option />")
+									.val(objecttype.type_id)
+									.text(objecttype.type_name)
+							);
+						});
+					});
+
+
+				$objecttypes.on("change", function() {
+					client.objecttypes.composition({id: $objecttypes.val()})
+						.then(function(compositions) {
+							$compositions.html("");
+							$(compositions.obj).each(function(i, composition){
+								$item = $("<li />")
+									.append(
+										"<input type=\"number\" min=\"0\" />" +
+										"<span>" + composition.composition_description + "(" + composition.composition_min_age + " - " + composition.composition_max_age + " jaar)</span>"
+									);
+
+								$compositions.append(
+									$item
+								);
+							});
+						});
+
+					client.objecttypes.facilities({id: $objecttypes.val()})
+						.then(function(facilities) {
+							$facilities.html("");
+							$(facilities.obj).each(function(i, facility){
+								$facilities.append(
+									"<li>" +
+										"<input type=\"checkbox\" value=\"" + facility.facility_id + "\" />" +
+										"<span>" + facility.facility_name + "</span>"+
+									"</li>"
+								);
+							});
+						});
+
+
+					client.booking.nights({type_id: $objecttypes.val()})
+						.then(function(nights) {
+							$nights.empty();
+							$(nights.obj).each(function(i, night){
+								$nights.append(
+									$("<option />")
+										.val(i)
+										.text(night)
+								);
+							});
+						});
+				});
+
+			});
+
+//			getObjectTypes();
+		});
+
+
+//		function doRequest(url, successcallback){
+//			var username = $('#input_username').val();
+//			var password = $('#input_password').val();
+//			if (username && username.trim() != "" && password && password.trim() != "") {
+//				$.ajax({
+//					method: "GET",
+//					beforeSend: function (xhr){
+//						xhr.setRequestHeader ("Authorization", "Basic " + btoa(username + ":" + password));
+//					},
+//			  		url: url
+//				}).done(successcallback)
+//			}
+//		}
+//
+//		function getFacilitiesByObjectTypeId(id){
+//			var el = $("#facilities");
+//			el.html("");
+//			if(id && id != "empty"){
+//				var url = "http://dev.api-2.count-it.nl/recreation/objecttypes/"+id+"/facilities";
+//				doRequest(url, function(data){
+//					el.append("<br /><span><b>Faciliteiten</b></span>");
+//					el.append("<ul>");
+//					$.each(data, function(i, e){
+//						el.append("<li>" + e.facility_name + "</li>");
+//					});
+//				});
+//				el.append("</ul>");
+//			}
+//		}
+//
+//		function getObjectsByObjectTypeId(id){
+//			var el = $("#objects");
+//			el.html("");
+//			if(id && id != "empty"){
+//				var url = "http://dev.api-2.count-it.nl/recreation/objects?type_id="+id;
+//				doRequest(url, function(data){
+//					el.append("<br /><span><b>Objecten</b></span>");
+//					el.append("<ul>");
+//					$.each(data, function(i, e){
+//						el.append("<li>" + e.object_name + "</li>");
+//					});
+//				});
+//				el.append("</ul>");
+//			}
+//		}
+//
+//		function getObjectTypes(){
+//			var url = "http://dev.api-2.count-it.nl/recreation/objecttypes";
+//			var el = $("#objecttypes");
+//			doRequest(url, function(data){
+//				var objts = new Array();
+//				$.each(data, function(i, e){
+//					objts.push(e);
+//				});
+//				$.each(objts, function(i, e){
+//					el.append("<option class='objecttype' value='" + e.type_id + "'>" + e.type_name + "</option>");
+//				});
+//				el.change(function(){
+//					var id = el.val();
+//					getFacilitiesByObjectTypeId(id);
+//					getObjectsByObjectTypeId(id);
+//				});
+//			});
+//		}
+	</script>
+</body>
+</html>

@@ -1,11 +1,10 @@
 <?php
 namespace app\controllers;
-use yii\rest\ActiveController;
 
 
-class RelationController extends RestController { // TODO EO
+class InvoiceController extends Rest { // TODO EO
 	public function init() {
-		$this->modelClass =	\eo\models\database\Relation::className();
+		$this->modelClass =	\eo\models\database\Invoice::className();
 
 		parent::init();
 	}

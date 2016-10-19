@@ -1,15 +1,11 @@
 <?php
-
 namespace app\controllers;
-
-use Yii;
 use yii\filters\AccessControl;
-use yii\web\Controller;
 use yii\filters\VerbFilter;
 use app\models\LoginForm;
 use app\models\ContactForm;
 
-class SiteController extends Controller
+class SiteController extends \yii\web\Controller
 {
     public function behaviors()
     {
@@ -47,6 +43,9 @@ class SiteController extends Controller
         ];
     }
 
+	/**
+	 * @return string
+	 */
     public function actionIndex()
     {
         return $this->render('index');

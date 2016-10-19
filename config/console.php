@@ -10,6 +10,8 @@ $config = [
     'basePath' => dirname(__DIR__),
     'bootstrap' => ['log'],
     'controllerNamespace' => 'app\commands',
+
+
     'components' => [
         'cache' => [
             'class' => 'yii\caching\FileCache',
@@ -32,6 +34,18 @@ $config = [
         ],
     ],
     */
+    'controllerMap' => [
+		'build-rest-doc' => [
+			'class' => '\pahanini\restdoc\controllers\BuildController',
+			'sourceDirs' => [
+				'@app/controllers',   // <-- path to your API controllers
+			],
+			'template' => '//restdoc/restdoc.twig',
+			'sortProperty' => 'shortDescription', // <-- default value (how controllers will be sorted)
+			'targetFile' => 'docs/api.html'
+		],
+	],
+
 ];
 
 if (YII_ENV_DEV) {

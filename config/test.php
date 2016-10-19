@@ -1,7 +1,18 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: Robert
- * Date: 27-5-2016
- * Time: 11:38
- */
+
+return [
+	'components'	=> [
+		'db' => [
+			'dsn' 					=> 'mysql:host=devvps.digizijn.nl;dbname=count-it-test',
+			'username' 				=> 'count-it-test',
+			'password' 				=> 'bSic7!25',
+			'enableSchemaCache' 	=> true,
+		],
+
+		'response'	=> [
+			'formatters' => [
+				'json' => '\eo\base\helper\PrettyJsonResponseFormatter',
+			],
+		],
+	]
+];

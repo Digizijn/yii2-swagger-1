@@ -7,11 +7,32 @@
     "support": {
         "email": "robert@digizijn.nl"
     },
+    "authors": [
+        {
+            "name": "Digizijn",
+            "email": "support@digizijn.nl"
+        }
+    ],
+
     "minimum-stability": "dev",
+
+    "repositories" : [
+  		{"type": "git", "url": "git@bitbucket.org:digizijn/framework.git"},
+        {
+            "type": "vcs",
+            "url": "https://github.com/mobidev-php/yii2-swagger.git"
+        }
+	],
+
     "require": {
         "php": ">=5.4.0",
         "yiisoft/yii2": ">=2.0.5",
-        "yiisoft/yii2-swiftmailer": "*"
+        "yiisoft/yii2-swiftmailer": "*",
+		"digizijn/framework": "dev-master",
+        "mobidev/yii2-swagger": "dev-master",
+        "machour/yii2-swagger-api": "dev-master",
+        "tunecino/yii2-nested-rest": "^0.2.0",
+        "yiisoft/yii2-redis": "^2.0"
     },
     "require-dev": {
         "yiisoft/yii2-codeception": "*",
@@ -19,14 +40,17 @@
         "yiisoft/yii2-gii": "*",
         "yiisoft/yii2-faker": "*"
     },
+
     "config": {
         "process-timeout": 1800
     },
+
     "scripts": {
         "post-create-project-cmd": [
             "yii\\composer\\Installer::postCreateProject"
         ]
     },
+
     "extra": {
         "yii\\composer\\Installer::postCreateProject": {
             "setPermission": [

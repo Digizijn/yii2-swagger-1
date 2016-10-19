@@ -1,7 +1,31 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: Robert
- * Date: 27-5-2016
- * Time: 11:38
- */
+
+return [
+    'bootstrap' => [
+		'debug',
+		'gii'
+	],
+
+    'modules' => [
+		'debug' => [
+        	'class' => \yii\debug\Module::className(),
+			'allowedIPs' => ['127.0.0.1', '::1', '192.168.0.*', '217.100.45.50']
+    	],
+		'gii'	=> [
+			'class' => yii\gii\Module::className(),
+    		'allowedIPs' => ['127.0.0.1', '::1', '192.168.0.*', '217.100.45.50']
+		],
+	],
+	
+	'components'	=> [
+		'db'	=> [
+			'enableSchemaCache' 	=> false,
+		],
+
+		'response'	=> [
+			'formatters' => [
+				'json' => '\eo\base\helper\PrettyJsonResponseFormatter',
+			],
+		],
+	],
+];

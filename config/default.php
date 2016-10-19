@@ -1,7 +1,146 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: Robert
- * Date: 27-5-2016
- * Time: 13:03
- */
+$cookie_domain = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : $_SERVER['SERVER_NAME'];
+if(substr($cookie_domain, 0, 4) == 'www.'){
+	$cookie_domain	= substr($cookie_domain, 4);
+}
+$cookie_path   = '/';
+if (YII_ENV_DEV) {
+	$cookie_path   .= str_replace($_SERVER['DOCUMENT_ROOT'], '', getcwd());
+}
+$cookie_path	= '/'.trim($cookie_path, '/');
+
+ini_set('session.cookie_domain', $cookie_domain);
+ini_set('session.cookie_path', $cookie_path);
+
+
+$params = require(__DIR__ . '/params.php');
+
+
+return [
+    'id' 		=> 'default',
+    'basePath' 	=> dirname(__DIR__),
+    'bootstrap' => ['log'],
+    'language' => 'nl-NL',
+    'sourceLanguage' => 'nl-NL',
+//    'controllerNamespace' => '\\',
+    'components' => [
+        'request' => [
+            // !!! insert a secret key in the following (if it is empty) - this is required by cookie validation
+            'cookieValidationKey' => 'M0DIc86aXvsmJl8g3utCsGEkP-XR_YJ5',
+        ],
+
+        'cache' => [
+            'class' => \yii\caching\FileCache::className(),
+        ],
+
+        'user' => [
+//			'class'				=> \eo\base\WebUser::classname,
+            'identityClass' 	=> \eo\models\database\Cmsusers::className(),
+			'loginUrl'			=> array('/user/default/inloggen'),
+            'enableAutoLogin' 	=> false,
+			'identityCookie'	=> array(
+				'domain'			=> $cookie_domain,
+				'autoRenewCookie'	=> false,
+			),
+        ],
+
+        'errorHandler' => [
+            'errorAction' => 'site/error',
+        ],
+
+        'mailer' => [
+            'class' => \yii\swiftmailer\Mailer::className(),
+            'useFileTransport' => true,
+        ],
+
+        'log' => [
+            'traceLevel' => YII_DEBUG ? 3 : 0,
+            'targets' => [
+				[
+					'class'			=> \yii\log\EmailTarget::className(),
+					'levels'		=> ['error'],
+//					'categories'	=> [],
+					'except' => [
+						'yii\web\HttpException:404',
+					],
+					'prefix' => function ($message) {
+						$user = Yii::$app->has('user', true) ? Yii::$app->get('user') : null;
+						$userID = $user ? $user->getId(false) : '-';
+						return "[$userID]";
+					},
+    				'logVars' => ['_SERVER', '_SESSION'],
+					'message'		=> [
+						'from'		=> [$_SERVER['SERVER_NAME'].' <error@digizijn.nl>'],
+						'to'		=> 'error@digizijn.nl',
+						'subject'	=> 'ERROR php '.$_SERVER['SERVER_NAME'],
+					]
+				],
+                [
+                    'class' 		=> \yii\log\FileTarget::className(),
+                    'levels' 		=> ['error', 'warning'],
+					'except' => [
+						'yii\web\HttpException:404',
+					],
+                ],
+            ],
+        ],
+        'db' => [
+			'class' 				=> \yii\db\Connection::className(),
+			'dsn' 					=> 'mysql:host=localhost;dbname=count-it',
+			'username' 				=> 'count-it',
+			'password' 				=> 'fm2804',
+			'charset' 				=> 'utf8',
+			'enableSchemaCache' 	=> true,
+            'schemaCacheDuration' 	=> 3600,
+//            'schemaCache' 			=> 'redis',
+            'schemaCache'         	=> 'cache',
+			// schemaCacheExclude
+			'enableQueryCache'		=> true,
+            'queryCache'          	=> 'cache',
+			'queryCacheDuration'	=> 60,
+//			'enableParamLogging'	=> false,
+//			'enableProfiling'       => false,
+//			'emulatePrepare' 		=> true,
+		],
+
+		'redis' => [
+			'class'			=> yii\redis\Cache::className(),
+//			'serializer'	=> 'igbinary',
+			'hostname' 		=> 'localhost',
+			'port' 			=> 6379,
+			'database' 		=> 0,
+
+		],
+
+		'filecache'	=> [
+			'class'		=> \yii\caching\FileCache::className()
+		],
+
+
+		'i18n' => [
+			'translations' => [
+				'*' 	=> [
+					'class'		            => \eo\base\MessageSource::className(), // TODO TranslationEventHandler::handleMissingTranslation(MissingTranslationEvent $event)
+					'on missingTranslation' => ['self', 'missing'],
+					'sourceLanguage' 		=> 'nl-NL',
+				]
+			],
+		],
+
+
+        'urlManager' => [
+			'class'				=> \eo\base\UrlManager::className(),
+            'enablePrettyUrl' 	=> true,
+    		'enableStrictParsing' => false,
+            'showScriptName' 	=> false,
+            'rules' 			=> [
+            ],
+        ],
+
+//        'session' => [
+//            'class' => 'yii\redis\Session',
+//        ],
+
+    ],
+    'params' => $params,
+];
