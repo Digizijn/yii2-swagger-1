@@ -33,7 +33,7 @@ class WebsitePageController extends YiiController
      * Lists all WebsitePages models.
      * @return mixed
      */
-    public function actionIndex()
+    public function actionAll()
     {
         $dataProvider = new ActiveDataProvider([
             'query' => WebsitePages::find(),
@@ -49,7 +49,7 @@ class WebsitePageController extends YiiController
      * @param integer $id
      * @return mixed
      */
-    public function actionView($id)
+    public function actionOne($id)
     {
         return $this->render('view', [
             'model' => $this->findModel($id),

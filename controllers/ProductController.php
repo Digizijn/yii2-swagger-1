@@ -30,7 +30,7 @@ class ProductController extends Rest {
 	 * @return Products[] successful operation
      * @errors 405 Invalid input
      */
-	public function __index($expand = []) {}
+	public function actionAll($expand = []) {}
 
 	/**
      * Retreive specific product
@@ -46,5 +46,5 @@ class ProductController extends Rest {
      * @constraint minimum $id 1
      * @errors 404 Product not found
      */
-	public function __view($expand = []) {}
+	public function actionOne($expand = []) {}
 }

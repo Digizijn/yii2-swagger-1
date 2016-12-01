@@ -1,6 +1,7 @@
 <?php
 namespace app\controllers;
 use eo\models\database\RecreationPeriod;
+use eo\models\database\RecreationPeriodPrice;
 use eo\models\database\RecreationRentalPeriod;
 
 /**
@@ -28,10 +29,11 @@ class RecreationPeriodController extends Rest {
 	 * @security default
 	 * @optparameter string[] $expand
 	 * @enum $expand prices
-     * @errors 405 Invalid input
 	 * @return RecreationPeriod[] successful operation
+     * @errors 405 Invalid input
      */
-	public function __index($expand = []) {}
+	public function actionAll($expand = []) {}
+
 
 	/**
      * Retreive specific period
@@ -40,11 +42,13 @@ class RecreationPeriodController extends Rest {
      * @method get
      * @tag periods
 	 * @security default
-	 * @return RecreationPeriod successful operation
      * @param integer $id
      * @parameter int64 $id Period id to retreive
      * @constraint minimum $id 1
+	 * @optparameter string[] $expand
+	 * @enum $expand prices
+	 * @return RecreationPeriod successful operation
      * @errors 404 Period not found
      */
-	public function __view($expand = []) {}
+	public function actionOne($expand = []) {}
 }

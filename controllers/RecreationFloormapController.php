@@ -27,10 +27,10 @@ class RecreationFloormapController extends Rest {
      * @tag floormaps
      * @optparameter string[] $expand
 	 * @enum $expand markers
-     * @errors 405 Invalid input
 	 * @return RecreationFloormap[] successful operation
+     * @errors 405 Invalid input
      */
-	public function __index($expand = []) {}
+	public function actionAll($expand = []) {}
 
 	/**
      * Retreive specific floormaps
@@ -41,11 +41,11 @@ class RecreationFloormapController extends Rest {
 	 * @security default
      * @param integer $id
      * @parameter int64 $id Floormap id to retreive
+	 * @constraint minimum $id 1
      * @optparameter string $expand[]
 	 * @enum $expand markers
 	 * @return RecreationFloormap successful operation
-     * @constraint minimum $id 1
      * @errors 404 Floormap not found
      */
-	public function __view($expand = []) {}
+	public function actionOne($expand = []) {}
 }

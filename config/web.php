@@ -24,6 +24,24 @@ $config = ArrayHelper::merge(
 			'response' => [
 				'format' => yii\web\Response::FORMAT_JSON,
 				'charset' => 'UTF-8',
+				'acceptMimeType' => 'application/json',
+
+				'formatters' => [
+					\yii\web\Response::FORMAT_HTML => [
+						'class' => \yii\web\HtmlResponseFormatter::class,
+					],
+					\yii\web\Response::FORMAT_JSON => [
+						'class' => \yii\web\JsonResponseFormatter::class,
+						'prettyPrint' => !YII_ENV_PROD,
+						'encodeOptions' => JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
+					],
+					\yii\web\Response::FORMAT_JSONP => [
+						'class' => \yii\web\JsonResponseFormatter::class,
+						'prettyPrint' => !YII_ENV_PROD,
+						'encodeOptions' => JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
+						'useJsonp' => true
+					],
+				],
 			],
 
 			'errorHandler' => [
@@ -33,7 +51,7 @@ $config = ArrayHelper::merge(
 			'user' => [
 				'loginUrl'			=> null,
 				'enableSession'		=> false,
-				'identityClass'		=> Cmsusers::className(),
+				'identityClass'		=> Cmsusers::class,
 			],
 
 			'urlManager'	=> [
@@ -42,25 +60,52 @@ $config = ArrayHelper::merge(
 				'showScriptName' => false,
 
 				'rules'	=> [
+//					[
+//						'class' => \yii\rest\UrlRule::class,
+//						'controller' => [
+//							'invoice',
+//						],
+//					],
+
 					[
-						'class' => 'yii\rest\UrlRule',
-						'controller' => [
-							'relation',
-							'invoice',
-						],
-					],
-					[
-						'class' => 'yii\rest\UrlRule',
+						'class' => \yii\rest\UrlRule::class,
 						'controller' => 'order',
 						'except' => ['delete', 'create', 'update']
 					],
 					[
-						'class' => 'yii\rest\UrlRule',
+						'class' => \yii\rest\UrlRule::class,
 						'controller' => 'product',
 						'except' => ['delete', 'create', 'update']
 					],
 					[
-						'class' => 'yii\rest\UrlRule',
+						'class' => \yii\rest\UrlRule::class,
+						'controller' => ['invoices' => 'invoice'],
+						'except' => ['delete', 'create', 'update'],
+						'extraPatterns' => [
+							'GET swagger.json' => 'documentation',
+						],
+					],
+					[
+						'class' => \yii\rest\UrlRule::class,
+						'controller' => ['relations' => 'relation'],
+						'except' => ['delete', 'create'],
+						'extraPatterns' => [
+							'POST /' => 'save',
+							'POST /{id}/contacts' => 'contact-save',
+							'GET swagger.json' => 'documentation',
+						],
+					],
+					[
+						'class' => \yii\rest\UrlRule::class,
+						'controller' => ['transactions' => 'journal-transaction'],
+						'except' => ['delete', 'create'],
+						'extraPatterns' => [
+							'POST /' => 'save',
+							'GET swagger.json' => 'documentation',
+						],
+					],
+					[
+						'class' => \yii\rest\UrlRule::class,
 						'controller' => ['recreation/objects' => 'recreation-object'],
 						'except' => ['delete', 'create', 'update'],
 						'extraPatterns' => [
@@ -68,7 +113,19 @@ $config = ArrayHelper::merge(
 						],
 					],
 					[
-						'class' => 'yii\rest\UrlRule',
+						'class' => \tunecino\nestedrest\UrlRule::class,
+//						'controller' => ['facilities' => 'recreation-object-facilities'],
+						'modelClass'  => \eo\models\database\RecreationObject::class,
+						'relations' => [
+							'objectType' 	=> ['objecttype' 		=> 'recreation-object-type'],
+							'facilities' 	=> ['facilities' 		=> 'recreation-object-facilities'],
+							'rentalPeriod' 	=> ['rentalperiods' 	=> 'recreation-rental-period'],
+							'rentalType' 	=> ['rentaltypes' 		=> 'recreation-rental-type'],
+						],
+						'resourceName' => 'recreation\/objects',
+					],
+					[
+						'class' => \yii\rest\UrlRule::class,
 						'controller' => ['objecttypes' => 'recreation-object-type'],
 						'prefix'	=> 'recreation/',
 						'except' => ['delete', 'create', 'update'],
@@ -77,117 +134,210 @@ $config = ArrayHelper::merge(
 						],
 					],
 					[
-						'class' => 'tunecino\nestedrest\UrlRule',
-//						'controller' => ['facilities' => 'recreation-object-facilities'],
-						'modelClass'  => \eo\models\database\RecreationObjectType::className(),
-        				'relations' => [
-        					'facilities' => ['facilities' => 'recreation-object-facilities'],
-        					'composition' => ['composition' => 'recreation-composition']
+						'class' 		=> \tunecino\nestedrest\UrlRule::class,
+						'modelClass'  	=> \eo\models\database\RecreationObjectType::class,
+						'resourceName' 	=> 'recreation\/objecttypes',
+        				'relations' 	=> [
+							'facilities' 	=> ['facilities' 	=> 'recreation-object-facilities'],
+							'rentalTypes' 	=> ['rentaltypes' 	=> 'recreation-rental-type'],
+							'objects' 		=> ['objects' 		=> 'recreation-object'],
+        					'packages' 		=> ['packages' 		=> 'recreation-package'],
+        					'composition' 	=> ['composition' 	=> 'recreation-composition'],
 						],
-						'resourceName' => 'recreation\/objecttypes',
-//						'patterns' => [
-//							'GET,HEAD {IDs}' => 'nested-view',
-//						],
-//						'tokens' => [ /* optional */
-//							'{IDs}' => '<IDs:\\d[\\d,]*>',
-//						],
 					],
 					[
-						'class' => 'yii\rest\UrlRule',
-						'controller' => ['facilities' => 'recreation-object-facilities'],
-						'prefix'	=> 'recreation/',
-						'except' => ['delete', 'create', 'update'],
+						'class' 		=> \yii\rest\UrlRule::class,
+						'controller' 	=> ['facilities' => 'recreation-object-facilities'],
+						'prefix'		=> 'recreation/',
+						'except' 		=> ['delete', 'create', 'update'],
 						'extraPatterns' => [
 							'GET swagger.json' => 'documentation',
 						],
 					],
 					[
-						'class' => 'yii\rest\UrlRule',
-						'controller' => ['rentaltypes' => 'recreation-rental-type'],
-						'prefix'	=> 'recreation/',
-						'except' => ['delete', 'create', 'update'],
+						'class' 		=> \tunecino\nestedrest\UrlRule::class,
+						'modelClass'  	=> \eo\models\database\RecreationObjectFacility::class,
+						'resourceName' 	=> 'recreation\/facilities',
+						'relations' 	=> [
+							'objects' 		=> ['objects' 		=> 'recreation-object'],
+							'objecttypes' 	=> ['objecttypes' 	=> 'recreation-object-type'],
+							'product' 		=> ['product' 		=> 'product'],
+						],
+					],
+					[
+						'class' 		=> \yii\rest\UrlRule::class,
+						'controller' 	=> ['rentaltypes' => 'recreation-rental-type'],
+						'prefix'		=> 'recreation/',
+						'except' 		=> ['delete', 'create', 'update'],
 						'extraPatterns' => [
 							'GET swagger.json' => 'documentation',
 						],
 					],
 					[
-						'class' => 'yii\rest\UrlRule',
-						'controller' => ['packages' => 'recreation-package'],
-						'prefix'	=> 'recreation/',
-						'except' => ['delete', 'create', 'update'],
+						'class' 		=> \yii\rest\UrlRule::class,
+						'controller' 	=> ['packages' => 'recreation-package'],
+						'prefix'		=> 'recreation/',
+						'except' 		=> ['delete', 'create', 'update'],
 						'extraPatterns' => [
 							'GET swagger.json' => 'documentation',
 						],
 					],
 					[
-						'class' => 'yii\rest\UrlRule',
-						'controller' => ['rentalperiods' => 'recreation-rental-period'],
-						'prefix'	=> 'recreation/',
-						'except' => ['delete', 'create', 'update'],
+						'class' 		=> \tunecino\nestedrest\UrlRule::class,
+						'modelClass'  	=> \eo\models\database\RecreationPackage::class,
+						'resourceName' 	=> 'recreation\/packages',
+						'relations' 	=> [
+							'periods' 		=> ['periods' 		=> 'recreation-period'],
+							'objectType' 	=> ['objecttypes' 	=> 'recreation-object-type'],
+							'rentalType' 	=> ['rentaltype' 	=> 'recreation-rental-type'],
+							'product' 		=> ['product' 		=> 'product'],
+						],
+					],
+					[
+						'class' 		=> \yii\rest\UrlRule::class,
+						'controller' 	=> ['rentalperiods' => 'recreation-rental-period'],
+						'prefix'		=> 'recreation/',
+						'except' 		=> ['delete', 'create', 'update'],
 						'extraPatterns' => [
 							'GET swagger.json' => 'documentation',
 						],
 					],
 					[
-						'class' => 'yii\rest\UrlRule',
-						'controller' => ['periods' => 'recreation-period'],
-						'prefix'	=> 'recreation/',
-						'except' => ['delete', 'create', 'update'],
+						'class' 		=> \tunecino\nestedrest\UrlRule::class,
+						'modelClass'  	=> \eo\models\database\RecreationRentalPeriod::class,
+						'resourceName' 	=> 'recreation\/rentalperiods',
+						'relations' 	=> [
+							'rentalType' 	=> ['rentaltype' 	=> 'recreation-rental-type'],
+							'product' 		=> ['product' 		=> 'product'],
+						],
+					],
+					[
+						'class' 		=> \yii\rest\UrlRule::class,
+						'controller' 	=> ['periods' => 'recreation-period'],
+						'prefix'		=> 'recreation/',
+						'except' 		=> ['delete', 'create', 'update'],
 						'extraPatterns' => [
 							'GET swagger.json' => 'documentation',
 						],
 					],
 					[
-						'class' => 'yii\rest\UrlRule',
-						'controller' => ['compositions' => 'recreation-composition'],
-						'prefix'	=> 'recreation/',
-						'except' => ['delete', 'create', 'update'],
+						'class' 		=> \yii\rest\UrlRule::class,
+						'controller' 	=> ['compositions' => 'recreation-composition'],
+						'prefix'		=> 'recreation/',
+						'except' 		=> ['delete', 'create', 'update'],
 						'extraPatterns' => [
 							'GET swagger.json' => 'documentation',
 						],
 					],
 					[
-						'class' => 'yii\rest\UrlRule',
-						'controller' => ['floormaps' => 'recreation-floormap'],
-						'prefix'	=> 'recreation/',
-						'except' => ['delete', 'create', 'update'],
+						'class' 		=> \yii\rest\UrlRule::class,
+						'controller' 	=> ['floormaps' => 'recreation-floormap'],
+						'prefix'		=> 'recreation/',
+						'except' 		=> ['delete', 'create', 'update'],
 						'extraPatterns' => [
 							'GET swagger.json' => 'documentation',
 						],
 					],
 					[
-						'class' => 'yii\rest\UrlRule',
-						'controller' => ['products' => 'product'],
-						'prefix'	=> '/',
-						'except' => ['delete', 'create', 'update'],
+						'class' 		=> \yii\rest\UrlRule::class,
+						'controller' 	=> ['booking' => 'recreation-booking'],
+						'prefix'		=> 'recreation/',
+						'except' 		=> ['delete', 'create', 'update'],
+						'extraPatterns' => [
+							'GET swagger.json' => 'documentation',
+						],
+					],
+					[
+						'class' 		=> \yii\rest\UrlRule::class,
+						'controller' 	=> ['events/compositions' => 'recreation-event-composition'],
+						'prefix'		=> 'recreation/',
+						'except' 		=> ['delete'],
+						'extraPatterns' => [
+							'GET swagger.json' => 'documentation',
+						],
+					],
+					[
+						'class' 		=> \tunecino\nestedrest\UrlRule::class,
+						'modelClass'  	=> \eo\models\database\RecreationEventsComposition::class,
+						'resourceName' 	=> 'recreation\/events\/compositions',
+						'relations' 	=> [
+							'event' 	=> ['event' 	=> 'recreation-event'],
+						],
+					],
+					[
+						'class' 		=> \yii\rest\UrlRule::class,
+						'controller' 	=> ['rentaltypes' => 'recreation-rental-type'],
+						'prefix'		=> 'recreation/',
+						'except' 		=> ['delete', 'create', 'update'],
+						'extraPatterns' => [
+							'GET swagger.json' => 'documentation',
+						],
+					],
+					[
+						'class' 		=> \tunecino\nestedrest\UrlRule::class,
+						'modelClass'  	=> \eo\models\database\RecreationRentalType::class,
+						'resourceName' 	=> 'recreation\/rentaltypes',
+						'relations' 	=> [
+							'rentalPeriod' 	=> ['rentalperiods' => 'recreation-rental-period'],
+							'object' 		=> ['objects' 		=> 'recreation-object'],
+							'product' 		=> ['product' 		=> 'product'],
+							'objectType' 	=> ['objecttype' 	=> 'recreation-object-type'],
+						],
+					],
+					[
+						'class' 		=> \yii\rest\UrlRule::class,
+						'controller' 	=> ['eventstates' => 'recreation-event-state'],
+						'prefix'		=> 'recreation/',
+						'except' 		=> ['delete', 'create', 'update'],
+						'extraPatterns' => [
+							'GET swagger.json' => 'documentation',
+						],
+					],
+					[
+						'class'		 	=> \yii\rest\UrlRule::class,
+						'controller' 	=> ['events' => 'recreation-event'],
+						'prefix'		=> 'recreation/',
+						'except' 		=> ['delete', 'create'],
+						'extraPatterns' => [
+							'POST /' 			=> 'save',
+							'GET swagger.json' 	=> 'documentation',
+						],
+					],
+					[
+						'class' 		=> \tunecino\nestedrest\UrlRule::class,
+						'modelClass'  	=> \eo\models\database\RecreationEvents::class,
+						'resourceName' 	=> 'recreation\/events',
+						'relations' 	=> [
+							'object' 		=> ['objects' 		=> 'recreation-object'],
+							'invoices' 		=> ['invoices' 		=> 'invoices'],
+							'products' 		=> ['products' 		=> 'product'],
+							'package' 		=> ['package' 		=> 'recreation-package'],
+							'rentalType' 	=> ['rentaltype' 	=> 'recreation-rental-type'],
+							'houseguests' 	=> ['guests' 		=> 'relation'],
+							'eventRelation' => ['relation' 		=> 'relation'],
+						],
+					],
+					[
+						'class' 		=> \yii\rest\UrlRule::class,
+						'controller' 	=> ['products' => 'product'],
+						'prefix'		=> '/',
+						'except' 		=> ['delete', 'create', 'update'],
 						'extraPatterns' => [
 							'GET swagger.json' => 'documentation',
 						],
 					],
 
-					[
-						'class' => 'yii\rest\UrlRule',
-						'controller' => ['booking' => 'recreation-booking'],
-						'prefix'	=> 'recreation/',
-						'except' => ['delete', 'create', 'update'],
-						'extraPatterns' => [
-							'GET swagger.json' => 'documentation',
-						],
-					],[
-						'class' => 'yii\rest\UrlRule',
-						'controller' => ['events' => 'recreation-event'],
-						'prefix'	=> 'recreation/',
-						'except' => ['delete', 'create', 'update'],
-						'extraPatterns' => [
-							'GET swagger.json' => 'documentation',
-						],
-					],
+
 					'recreation/booking/nights' 			=> 'recreation-booking/nights', // TODO samenvoegen met bovestaande regel
 					'recreation/booking/availability' 		=> 'recreation-booking/availability', // TODO samenvoegen met bovestaande regel
 					'recreation/booking/first-available' 	=> 'recreation-booking/first-available', // TODO samenvoegen met bovestaande regel
+//					'recreation/booking/pricing2' 			=> 'recreation-booking/pricing-oud', // TODO samenvoegen met bovestaande regel
 					'recreation/booking/pricing' 			=> 'recreation-booking/pricing', // TODO samenvoegen met bovestaande regel
+					'recreation/booking/block' 				=> 'recreation-booking/block', // TODO samenvoegen met bovestaande regel
+					'recreation/booking/block/<block_id:\d+>/cancel' 	=> 'recreation-booking/block-cancel', // TODO samenvoegen met bovestaande regel
+					'recreation/events/calculate' 			=> 'recreation-event/calculate', // TODO samenvoegen met bovestaande regel
 
-                	'documentation' => 'swagger',
+					'documentation' => 'swagger',
                 	'test' => 'test',
 					'documentation.json' => 'documentation',
 					//]

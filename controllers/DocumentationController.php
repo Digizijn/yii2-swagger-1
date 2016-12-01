@@ -8,23 +8,26 @@ class DocumentationController extends Controller{
 		\Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
 
 		$controllerArray = 	array(
-								ProductController::className(),
-								RecreationObjectController::className(),
-								RecreationObjectFacilitiesController::className(),
-								RecreationObjectTypeController::className(),
-								RecreationPackageController::className(),
-								RecreationRentalPeriodController::className(),
-								RecreationPeriodController::className(),
-								RecreationCompositionController::className(),
-								RecreationFloormapController::className(),
-								ProductController::className(),
-								RecreationBookingController::className(),
-								RecreationEventController::className(),
+			ProductController::className(),
+			RecreationObjectController::className(),
+			RecreationObjectFacilitiesController::className(),
+			RecreationObjectTypeController::className(),
+			RecreationPackageController::className(),
+			RecreationRentalPeriodController::className(),
+			RecreationPeriodController::className(),
+			RecreationCompositionController::className(),
+			RecreationEventCompositionController::className(),
+			RecreationEventStateController::className(),
+			RecreationFloormapController::className(),
+			ProductController::className(),
+			RecreationBookingController::className(),
+			RecreationEventController::className(),
+			RecreationRentalTypeController::className(),
+			JournalTransactionController::className(),
+			RelationController::className(),
 
-								RecreationRentalTypeController::className(),
-
-								//RelationController::className()
-							);
+			RecreationRentalTypeController::className(),
+		);
 
 		$json = [];
 		foreach($controllerArray as $controller){

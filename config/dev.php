@@ -6,37 +6,19 @@ return [
 			'dsn' 					=> 'mysql:host=localhost;dbname=count-it-backup',
 			'username' 				=> 'count-it-backup',
 			'password' 				=> 'co2un8',
-			'charset'				=> 'utf8',
-			'enableSchemaCache' 	=> true,
+			'charset'				=> 'latin1',
+			'enableSchemaCache' 	=> YII_CACHE,
 			'schemaCacheDuration' 	=> 3600,
 //            'schemaCache' 			=> 'redis',
 			'schemaCache'         	=> 'cache',
 			// schemaCacheExclude
-			'enableQueryCache'		=> true,
+			'enableQueryCache'		=> YII_CACHE,
 			'queryCache'          	=> 'cache',
 			'queryCacheDuration'	=> 60,
 		],
-
-		'cache' => [ // TODO Verplaatsen naar main config
-			'class' => 'yii\redis\Cache',
-		],
-
-		'session' => [ // TODO Verplaatsen naar main config
-			'class' => 'yii\redis\Session',
-		],
-
-		'redis' => [
-			'class' 	=> 'yii\redis\Connection',
-			'hostname' 	=> 'localhost',
-			'port' 		=> 6379,
-			'database' 	=> 0,
-		],
-
-		'response'	=> [
-			'formatters' => [
-				'json' => '\eo\base\helper\PrettyJsonResponseFormatter',
-			],
-		],
+	],
+	'params' => [
+		'eo_url'	=> 'https://dev.everyoffice.nl/cmspanel/'
 	]
 ];
 

@@ -19,13 +19,7 @@ return [
 	
 	'components'	=> [
 		'db'	=> [
-			'enableSchemaCache' 	=> false,
-		],
-
-		'response'	=> [
-			'formatters' => [
-				'json' => '\eo\base\helper\PrettyJsonResponseFormatter',
-			],
+			'enableSchemaCache' 	=> YII_CACHE,
 		],
 	],
 ];

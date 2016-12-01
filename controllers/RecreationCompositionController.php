@@ -26,10 +26,10 @@ class RecreationCompositionController extends Rest {
      * @tag compositions
      * @optparameter string[] $expand
 	 * @enum $expand excluded
-     * @errors 405 Invalid input
 	 * @return RecreationComposition[] successful operation
+	 * @errors 405 Invalid input
      */
-	public function __index($expand = []) {}
+	public function actionAll($expand = []) {}
 
 	/**
      * Retreive specific composition
@@ -42,9 +42,9 @@ class RecreationCompositionController extends Rest {
      * @parameter int64 $id Composition id to retreive
      * @optparameter string $expand[]
 	 * @enum $expand excluded
-	 * @return RecreationComposition successful operation
      * @constraint minimum $id 1
+	 * @return RecreationComposition successful operation
      * @errors 404 Composition not found
      */
-	public function __view($expand = []) {}
+	public function actionOne($expand = []) {}
 }

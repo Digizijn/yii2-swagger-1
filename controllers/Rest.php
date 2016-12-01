@@ -29,6 +29,16 @@ use yii\web\BadRequestHttpException;
 abstract class Rest extends ApiController {
     public $reservedParams = ['sort','q'];
 
+
+	public function init() {
+		$app = EO::$app;
+		if ($app->request->headers->get('Cache-Control') === 'no-cache' || $app->request->getQueryParam('no-cache') !== null) {
+
+		}
+
+		parent::init();
+	}
+
 	public function behaviors() {
 		$behaviors = parent::behaviors();
 
@@ -36,17 +46,17 @@ abstract class Rest extends ApiController {
 		$behaviors['contentNegotiator']['formats']['application/jsonp'] = \yii\web\Response::FORMAT_JSONP;
 
 		$behaviors['corsFilter'] = [
-				'class' => \yii\filters\Cors::className(),
+			'class' => \yii\filters\Cors::className(),
 		];
 
 		if ($_SERVER['REMOTE_ADDR'] !== '23.22.16.221') { // Swagger validator
 			$behaviors['authenticator'] = [
 				'class' => HttpBasicAuth::className(),
 				'auth' => function ($username, $password) {
-					$user = Cmsusers::find()->where(['user_name' => $username, 'user_level' => 'api'])->one(); // user level
+					$user = Cmsusers::find()->ignoreDefaultScope()->where(['user_name' => $username, 'user_level' => 'api'])->one(); // user level
 					if (!empty($user)) {
 						if ($user->verifyPassword($password)) {
-							$relation = Relation::find()->where(['user_id' => $user->user_id])->one();
+							$relation = Relation::find()->ignoreDefaultScope()->andWhere(['user_id' => $user->user_id])->one();
 
 //							$relation = $user->getRelationEo()->one();
 							if (!empty($relation)) {
@@ -145,6 +155,15 @@ abstract class Rest extends ApiController {
 		];
 
 		return $actions;
+	}
+
+
+	public function runAction($id, $params = [])
+	{
+		// Extract the params from the request and bind them to params
+		$params = \yii\helpers\BaseArrayHelper::merge((array)Yii::$app->getRequest()->getBodyParams(), $params);
+
+		return parent::runAction($id, $params);
 	}
 
 

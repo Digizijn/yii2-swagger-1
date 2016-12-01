@@ -12,19 +12,24 @@ defined('YII_DEBUG') || define('YII_DEBUG', getenv('APP_DEBUG') ? getenv('APP_DE
 defined('YII_ENV') or define('YII_ENV', getenv('APP_ENV') ? strtolower(getenv('APP_ENV')) : 'dev');
 
 /**
- * Whether the the application is running in production environment
+ * Whether the application is running in production environment
  */
 defined('YII_ENV_PROD') or define('YII_ENV_PROD', YII_ENV === 'prod');
 
 /**
- * Whether the the application is running in development environment
+ * Whether the application is running in development environment
  */
 defined('YII_ENV_DEV') or define('YII_ENV_DEV', YII_ENV === 'dev');
 
 /**
- * Whether the the application is running in testing environment
+ * Whether the application is running in testing environment
  */
 defined('YII_ENV_TEST') or define('YII_ENV_TEST', YII_ENV === 'test');
+
+/**
+ * Whether the application should cache shit
+ */
+defined('YII_CACHE') or define('YII_CACHE', !YII_ENV_DEV && !isset($_GET['no-cache']));
 
 /**
  * This constant defines whether error handling should be enabled. Defaults to true.
@@ -37,7 +42,16 @@ require(__DIR__ . '/../vendor/yiisoft/yii2/Yii.php');
 
 $config = require(__DIR__ . '/../config/web.php');
 
-(new eo\base\Application($config))->run();
+$app = new eo\base\Application($config);
+$app->on(yii\web\Application::EVENT_BEFORE_REQUEST, function(yii\base\Event $event){
+	$event->sender->response->on(yii\web\Response::EVENT_BEFORE_SEND, function($e){
+		ob_start("ob_gzhandler");
+	});
+	$event->sender->response->on(yii\web\Response::EVENT_AFTER_SEND, function($e){
+		ob_end_flush();
+	});
+});
+$app->run();
 
 
 ///**

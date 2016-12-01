@@ -29,7 +29,7 @@ return [
             'cookieValidationKey' => 'M0DIc86aXvsmJl8g3utCsGEkP-XR_YJ5',
         ],
 
-        'cache' => [
+        'filecache' => [
             'class' => \yii\caching\FileCache::className(),
         ],
 
@@ -89,13 +89,13 @@ return [
 			'dsn' 					=> 'mysql:host=localhost;dbname=count-it',
 			'username' 				=> 'count-it',
 			'password' 				=> 'fm2804',
-			'charset' 				=> 'utf8',
-			'enableSchemaCache' 	=> true,
+			'charset'				=> 'latin1',
+			'enableSchemaCache' 	=> YII_CACHE,
             'schemaCacheDuration' 	=> 3600,
 //            'schemaCache' 			=> 'redis',
             'schemaCache'         	=> 'cache',
 			// schemaCacheExclude
-			'enableQueryCache'		=> true,
+			'enableQueryCache'		=> YII_CACHE,
             'queryCache'          	=> 'cache',
 			'queryCacheDuration'	=> 60,
 //			'enableParamLogging'	=> false,
@@ -103,14 +103,23 @@ return [
 //			'emulatePrepare' 		=> true,
 		],
 
-		'redis' => [
-			'class'			=> yii\redis\Cache::className(),
-//			'serializer'	=> 'igbinary',
-			'hostname' 		=> 'localhost',
-			'port' 			=> 6379,
-			'database' 		=> 0,
 
+
+		'cache' => [ // TODO Verplaatsen naar main config
+			'class' => 'yii\redis\Cache',
 		],
+
+		'session' => [ // TODO Verplaatsen naar main config
+			'class' => 'yii\redis\Session',
+		],
+
+		'redis' => [
+			'class' 	=> 'yii\redis\Connection',
+			'hostname' 	=> 'localhost',
+			'port' 		=> 6379,
+			'database' 	=> 0, // TODO serializer igbinary
+		],
+
 
 		'filecache'	=> [
 			'class'		=> \yii\caching\FileCache::className()

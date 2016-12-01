@@ -3,17 +3,10 @@
 	<title>EveryOffice API Demo</title>
 	<!--<script src="https://code.jquery.com/jquery-3.1.1.min.js" integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8=" crossorigin="anonymous"></script>-->
     <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" integrity="sha256-KM512VNnjElC30ehFwehXjx1YCHPiQkOPmqnrWtpccM=" crossorigin="anonymous"></script>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.css" integrity="sha256-rByPlHULObEjJ6XQxW/flG2r+22R5dKiAoef+aXWfik=" crossorigin="anonymous" />
+
 	<script src="/swagger-client.js"></script>
-	<script type="text/javascript">
-	// initialize swagger with promise
-	var client = new SwaggerClient({
-		url: "/documentation.json",
-		usePromise: true,
-		authorizations : {
-    		easyapi_basic: new SwaggerClient.PasswordAuthorization('testapi', '#apitest!')
-		}
-	});
-	</script>
 
 
 	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
@@ -31,10 +24,21 @@
 		<select>
 			<option value="empty"></option>
 		</select>
+		<img src="/images/noimage.png" id="objecttype_image" style="display: block; width: 250px">
 	</div>
 
 	<div id="composition">
 		<h4>Samenstelling</h4>
+		<ul></ul>
+	</div>
+
+	<div id="facilities">
+		<h4>Faciliteiten</h4>
+		<ul></ul>
+	</div>
+
+	<div id="preference">
+		<h4>Voorkeur</h4>
 		<ul></ul>
 	</div>
 
@@ -44,29 +48,65 @@
 		</select>
 	</div>
 
-	<div id="facilities">
-		<h4>Faciliteiten</h4>
-		<ul></ul>
+	<div id="arrival">
+		<h4>Aankomst</h4>
+		<input type="text" id="datepicker" />
+
+		<!-- TODO -->
+		<div class="datepicker-legenda">
+			<ul>
+				<li class="header">Legenda</li>
+				<li class="selected">Geselecteerde dag</li>
+				<li class="arrivaldate">Aankomst mogelijk</li>
+				<li class="available">Beschikbaar</li>
+				<li class="unavailable">Niet beschikbaar</li>
+			</ul>
+		</div>
 	</div>
 
 	<div id="objects">
-		<ul></ul>
+		<h4>Objecten</h4>
+		<ul>
+		</ul>
+	</div>
+
+	<div id="package">
+		<h4>Arrangement</h4>
+		<select>
+		</select>
+	</div>
+
+	<div>
+		<div id="price"></div>
 	</div>
 
 	<script>
 		$(document).ready(function() {
 			var $objecttypesDiv 	= $("#objecttypes");
 			var $objecttypes 		= $objecttypesDiv.find("select");
+			var $objecttypesImg		= $objecttypesDiv.find("img");
 			var $compositionsDiv	= $("#composition");
 			var $compositions 		= $compositionsDiv.find("ul");
-			var $objects 			= $("#objects");
+			var $objectsDiv			= $("#objects");
+			var $objects 			= $objectsDiv.find("ul");
 			var $facilitiesDiv 		= $("#facilities");
 			var $facilities 		= $facilitiesDiv.find("ul");
+			var $arrivalDiv 		= $("#arrival");
+			var $arrival		 	= $arrivalDiv.find("input");
 			var $nightsDiv 			= $("#nights");
 			var $nights		 		= $nightsDiv.find("select");
+			var $packageDiv			= $("#package");
+			var $packages 			= $packageDiv.find("select");
+			var $price				= $("#price");
 
-			client.then(function(client) {
-				client.objecttypes.all()
+			var swagger = new SwaggerClient({
+				url: "/documentation.json",
+				usePromise: true,
+				authorizations : {
+					easyapi_basic: new SwaggerClient.PasswordAuthorization('testapi', '#apitest!')
+				}
+			}).then(function(client) {
+				client.objecttypes.all({expand: "images"})
 					.then(function(objecttypes) {
 						$objecttypes.empty();
 
@@ -81,6 +121,11 @@
 
 
 				$objecttypes.on("change", function() {
+					client.objecttypes.one({id: $objecttypes.val(), expand: "images"})
+						.then(function(objecttype) {
+							$objecttypesImg.attr("src", (objecttype.obj.images.length > 0 ? objecttype.obj.images[0].url : '/images/noimage.png'));
+						});
+
 					client.objecttypes.composition({id: $objecttypes.val()})
 						.then(function(compositions) {
 							$compositions.html("");
@@ -110,6 +155,19 @@
 							});
 						});
 
+					client.objecttypes.objects({id: $objecttypes.val()})
+						.then(function(objects) {
+							$objects.html("");
+
+							$(objects.obj).each(function(i, object){
+								$objects.append(
+									"<li>" +
+										"<input type=\"radio\" value=\"" + object.object_id + "\" disabled />" +
+										"<span>" + object.object_name + "</span>"+
+									"</li>"
+								);
+							});
+						});
 
 					client.booking.nights({type_id: $objecttypes.val()})
 						.then(function(nights) {
@@ -124,6 +182,123 @@
 						});
 				});
 
+
+				var updatePrice = function(objecttype, from, till, min_nights, max_nights, source) {
+					$price.html("");
+					client.booking.pricing({
+						type_id: objecttype,
+						arrival: from,
+						departure: till,
+						min_nights: min_nights,
+						max_nights: max_nights,
+						source: source
+					}).then(function(pricing) {
+						if (typeof pricing.obj !== undefined && typeof pricing.obj[from] !== undefined && pricing.obj[from].length > 0) {
+							var currPrice = pricing.obj[from][0];
+							var totalPrice = parseFloat(currPrice.price);
+
+							$price.append($("<span class=\"euro\">&euro; " + currPrice.price + "</span>"));
+							$(currPrice.products).each(function(){
+								$price.append($("<div>" + this.description + "<span class=\"euro\">&euro; " + (this.excl + this.vat) + "</span></div>"));
+								totalPrice += parseFloat((this.excl + this.vat));
+							});
+							$price.append($("<span class=\"total-price euro\">&euro; " + totalPrice + "</span>"));
+						}
+					});
+				};
+
+				var now = new Date();
+				var yrs3 = new Date();
+					yrs3.setFullYear(yrs3.getFullYear()+3);
+
+				$( "#datepicker" ).datepicker({
+					minDate: now,
+					maxDate: yrs3,
+					dateFormat: 'yy-mm-dd',
+					changeMonth: true,
+					changeYear: true,
+					onSelect: function() {
+						// Trigger change
+						// TODO
+
+					},
+					beforeShowDay: function(date) {
+						var currDate		= jQuery.datepicker.formatDate("yy-mm-dd", date);
+						var validDays		= []; // TODO ["'.implode('","', $availableDates).'"];
+						var blockedDates	= []; // TODO ["'.implode('","', $blockedDates).'"];
+
+						if($.inArray(currDate, validDays) != -1) {
+							return [true, "arrivaldate", "Aankomst mogelijk"];
+						} else {
+							if($.inArray(currDate, blockedDates) != -1) {
+								return [false, "unavailable", "Niet beschikbaar"];
+							} else {
+								return [false, "available", "Beschikbaar"];
+							}
+						}
+					},
+					onChangeMonthYear: function(year, month, dp) {
+						$(".pricesummaryloader").show();
+
+						var nights = $nights.val();
+						client.booking.availability({
+							arrival:	year + "-" + month + "-" + "01", // TODO
+							departure:	year + "-" + month + "-" + "31", // TODO datum 1e tot laatste vd maand
+							type_id:	$objecttypes.val(),
+							nights:		nights,
+							packages:	$packages.val(),
+							rental:		[] // TODO '.implode(',', $recreationBookForm->rentalIDs).'
+						})
+						.then(function(availibilities) {
+							var validDays = [];
+							$(availibilities.obj).each(function(){
+								validDays = validDays.concat(this.availability.filter(function (item) {
+									return validDays.indexOf(item) < 0;
+								}));
+							});
+
+//								if(typeof data.available !== "undefined" && typeof data.blocked !== "undefined"){
+							var $dp = $("#"+dp.id);
+							var arrivalDate = validDays.length > 0 ? validDays[0] : year + "-" + month + "-" + "01";
+
+							$dp.datepicker("setDate", arrivalDate);
+							$arrival.val(arrivalDate).trigger("change");
+
+							var departeDate = (new Date(arrivalDate));
+							departeDate.setDate(departeDate.getDate() + 1);
+
+							updatePrice($objecttypes.val(), arrivalDate, jQuery.datepicker.formatDate("yy-mm-dd", departeDate), nights, nights);
+
+							$dp.datepicker("option", {
+								beforeShowDay:	function(date){
+									var currDate		= jQuery.datepicker.formatDate("yy-mm-dd", date);
+									var blockedDates	= []; // TODO
+
+									if($.inArray(currDate, validDays) != -1) {
+										return [true, "arrivaldate", "Aankomst mogelijk"];
+									} else {
+										if($.inArray(currDate, blockedDates) != -1) {
+											return [false, "unavailable", "Niet beschikbaar"];
+										} else {
+											return [false, "available", "Beschikbaar"];
+										}
+									}
+								}
+							});
+//								}
+
+//							setTimeout(function(){
+//								$(".pricesummaryloader").hide();
+//							}, 6700);
+						});
+
+//						error:	function(){
+//							setTimeout(function(){
+//								$(".pricesummaryloader").hide();
+//							}, 500);
+//						}
+					}
+				});
 			});
 
 //			getObjectTypes();

@@ -1,0 +1,12 @@
+class_name: ApiTester
+
+modules:
+    enabled:
+        - REST:
+            url: http://dev.api-2.count-it.nl
+            depends: PhpBrowser
+            part: Json
+        - PhpBrowser:
+            url: 'http://dev.api-2.count-it.nl'
+            auth: ["testapi", "#apitest!"]
+        - \Helper\Api
