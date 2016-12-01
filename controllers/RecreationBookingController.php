@@ -3,6 +3,7 @@ namespace app\controllers;
 
 use DateInterval;
 use DateTime;
+use eo\base\database\RecreationEventsLog;
 use eo\base\EO;
 use eo\models\database\Products;
 use eo\models\database\RecreationEvents;
@@ -725,6 +726,10 @@ class RecreationBookingController extends Rest {
 			});
 		}
 
+		if (!YII_ENV_PROD) {
+			ksort($bookablePeriods);
+		}
+
 		return $bookablePeriods ?? [];
 	}
 
@@ -735,9 +740,9 @@ class RecreationBookingController extends Rest {
 			foreach (static::$productExtras[$type->type_id] as $extra) {
 				if (
 					$extra['rentalType'] == $rentalType->rental_id
-				 &&	$extra['nightsAway'] == $rentalType->rental_id
-				 &&	$extra['persons'] == $rentalType->rental_id
-				 &&	$extra['package'] == $rentalType->rental_id
+				 &&	$extra['nightsAway'] == $nightsAway
+				 &&	$extra['persons'] == $persons
+				 &&	$extra['package'] == ($package ? $package->package_id : 0)
 				 && $extra['source'] == $source
 				) {
 					return $extra['extras'];
@@ -1183,9 +1188,9 @@ class RecreationBookingController extends Rest {
 
 		static::$productExtras[$type->type_id][] = [
 			'rentalType' 	=> $rentalType->rental_id,
-			'nightsAway' 	=> $rentalType->rental_id,
-			'persons' 		=> $rentalType->rental_id,
-			'package' 		=> $rentalType->rental_id,
+			'nightsAway' 	=> $nightsAway,
+			'persons' 		=> $persons,
+			'package' 		=> $package ? $package->package_id : 0,
 			'source' 		=> $source,
 			'extras' 		=> $extras
 		];
@@ -1543,7 +1548,9 @@ class RecreationBookingController extends Rest {
 
 
 		if (!$event->save()) {
-			throw new ServerErrorHttpException('Cant save option'.print_r($event->getErrors(), true));
+			throw new ServerErrorHttpException('Cant save option '.print_r($event->getErrors(), true));
+		} else {
+//			RecreationEventsLog::fromMessage('Reservering geblokkeerd')->save();
 		}
 
 		return $event->event_id; // TODO

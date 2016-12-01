@@ -471,9 +471,14 @@ class RecreationEventController extends Rest {
 			throw new BadRequestHttpException('Reservering-status niet beschikbaar');
 		}
 
-
 		if (empty($rental_ids)) {
 			$rental_ids = array_values(ArrayHelper::map($object->rentalConnection, 'rental_id', 'rental_id'));
+		}
+
+
+		$eventPackage = null;
+		if (!empty($package)) {
+			$eventPackage = RecreationPackage::findOne($package);
 		}
 
 		// Reserverering (met optie)
@@ -491,38 +496,33 @@ class RecreationEventController extends Rest {
 			if (!empty($event) && $event->state_id !== $optionState->state_id) {
 				throw new BadRequestHttpException('Blokkering/optie is al verlopen of gebruikt');
 			}
-
-			$event->event_changeuser		= new Expression('NOW()');
-			$event->event_changeuser		= $user->identity->user_id;
 		} else {
-
-			$eventPackage = null;
-			if (!empty($package)) {
-				$eventPackage = RecreationPackage::findOne($package);
-			}
-
 			// Reservering aanmaken
 			$event = new RecreationEvents();
-
-			$event->setObjectType($object->objectType);
-			$event->setArrivalDate($arrivalDate);
-			$event->setDepartureDate($departureDate);
-			$event->setAllowedRentalIDs($rental_ids);
-//		$event->setComposition($composition); // TODO?
-			$event->setPackage($eventPackage);
-			$event->setPeriodPrices();
-
-//		$eventPackage		= $event->getPackage(); // TODO
-
-			if((count($event->getPeriodPrices()) === 0)){ //  && empty($eventPackage) // TODO
-				throw new BadRequestHttpException(EO::t('recreation', 'De geselecteerde periode is niet meer beschikbaar.'));
-			}
 
 			if ($object->isAvailable($arrivalDate, $event->getNightsAway()) === false){
 				throw new BadRequestHttpException('De geselecteerde periode is niet meer beschikbaar.');
 			}
+
+			$event->event_createdate				= new Expression('NOW()');
+			$event->event_createuser				= $userId;
 		}
 
+		$event->event_changeuser		= new Expression('NOW()');
+		$event->event_changeuser		= $user->identity->user_id;
+
+		$event->setObject($object);
+		$event->setObjectType($object->objectType);
+		$event->setArrivalDate($arrivalDate);
+		$event->setDepartureDate($departureDate);
+		$event->setAllowedRentalIDs($rental_ids);
+//		$event->setComposition($composition); // TODO?
+		$event->setPackage($eventPackage);
+		$event->setPeriodPrices();
+
+		if((count($event->getPeriodPrices()) === 0)){ //  && empty($eventPackage) // TODO
+			throw new BadRequestHttpException(EO::t('recreation', 'De geselecteerde periode is niet meer beschikbaar.'));
+		}
 
 		//kortingsgroep zetten als er een kortingscode is ingevoerd
 //		$event->setDiscountGroup($model->getDiscountGroup()); // TODO
@@ -543,14 +543,18 @@ class RecreationEventController extends Rest {
 			}
 
 			if (empty($composition['amount']) || $composition['amount'] <= 0) {
-				throw new BadRequestHttpException('Ongeldig aantal faciliteit');
+				throw new BadRequestHttpException('Ongeldig aantal (amount) samenstelling');
 			}
 		}
 
 
 		$objectType			= $object->objectType;
 		$rentalType			= $event->rentalType;
+
+		$eventId 			= $event->event_id; 		// TODO Dirty hack om prijs te herberekenen na blokkeren
+		$event->event_id	= 0;  						// TODO Dirty hack om prijs te herberekenen na blokkeren
 		$price				= $event->getObjectPrice();
+
 //		$eventProductID		= $price->getProduct()->product_id;
 		$objectPrice		= $price->getInclusive(false);
 		$objectPriceExcl	= $price->getExclusive(false);
@@ -558,6 +562,8 @@ class RecreationEventController extends Rest {
 		$objectDiscount		= $price->getDiscountAmount(true);
 		$objectDiscountExcl	= $price->getDiscountAmount(false);
 		$objectDiscountVat	= $objectDiscount - $objectDiscountExcl;
+
+		$event->event_id 	= $eventId; 				// TODO Dirty hack om prijs te herberekenen na blokkeren
 
 		$checkin	= $objectType->type_checkin;
 		$checkout	= $objectType->type_checkout;
@@ -597,8 +603,6 @@ class RecreationEventController extends Rest {
 		$event->event_source			        = 'website';
 		$event->event_objectprice_manual		= 'ja';
 		$event->event_invoice_meter_readings    = $invoice_meter_readings;
-		$event->event_createdate				= new Expression('NOW()');
-		$event->event_createuser				= $userId;
 
 		$transaction = EO::$app->db->beginTransaction();
 		try {
@@ -611,12 +615,18 @@ class RecreationEventController extends Rest {
 			// samenstelling
 			if(count($compositions) > 0){
 				foreach($compositions AS $composition) {
-					$eventComposition					= new RecreationEventsComposition;
-					$eventComposition->event_id			= $eventId;
-					$eventComposition->composition_id	= $composition['composition_id'];
-					$eventComposition->conn_amount		= $composition['amount'];
-					if (!$eventComposition->save()) {
-						throw new ServerErrorHttpException('Kon samenstelling niet opslaan '.print_r($eventComposition->getErrors(), true));
+					$objectComposition	= RecreationObjectFacility::findOne($composition['composition_id']);
+
+					if (!empty($objectComposition)) {
+						$eventComposition					= new RecreationEventsComposition;
+						$eventComposition->event_id			= $eventId;
+						$eventComposition->composition_id	= $composition['composition_id'];
+						$eventComposition->conn_amount		= $composition['amount'];
+						if (!$eventComposition->save()) {
+							throw new ServerErrorHttpException('Kon samenstelling niet opslaan '.print_r($eventComposition->getErrors(), true));
+						}
+					} else {
+						throw new BadRequestHttpException('Ongeldige samenstelling #'.$composition['composition_id']);
 					}
 				}
 			}
