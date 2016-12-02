@@ -1542,7 +1542,7 @@ class RecreationBookingController extends Rest {
 		$event->event_objectprice_exclusive		= 0;
 		$event->event_objectprice_vat			= 0;
 		$event->event_objectprice_manual		= 'ja';
-		$event->event_expirationdate			= $expire->format('Y-m-d H:i:s');
+		$event->event_blockdate					= $expire->format('Y-m-d H:i:s');
 		$event->event_createdate				= new Expression('NOW()');
 		$event->event_createuser				= $user->identity->user_id;
 

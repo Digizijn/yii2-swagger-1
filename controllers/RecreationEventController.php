@@ -4,6 +4,7 @@ use DateTime;
 use eo\base\EO;
 use eo\models\database\Invoice;
 use eo\models\database\Products;
+use eo\models\database\RecreationComposition;
 use eo\models\database\RecreationEvents;
 use eo\models\database\RecreationEventsComposition;
 use eo\models\database\RecreationEventsDiscount;
@@ -497,13 +498,7 @@ class RecreationEventController extends Rest {
 				throw new BadRequestHttpException('Blokkering/optie is al verlopen of gebruikt');
 			}
 		} else {
-			// Reservering aanmaken
 			$event = new RecreationEvents();
-
-			if ($object->isAvailable($arrivalDate, $event->getNightsAway()) === false){
-				throw new BadRequestHttpException('De geselecteerde periode is niet meer beschikbaar.');
-			}
-
 			$event->event_createdate				= new Expression('NOW()');
 			$event->event_createuser				= $userId;
 		}
@@ -518,8 +513,15 @@ class RecreationEventController extends Rest {
 		$event->setAllowedRentalIDs($rental_ids);
 //		$event->setComposition($composition); // TODO?
 		$event->setPackage($eventPackage);
-		$event->setPeriodPrices();
 
+		if (empty($block_id)) {
+			// Reservering aanmaken
+			if ($object->isAvailable($arrivalDate, $event->getNightsAway()) === false){
+				throw new BadRequestHttpException('De geselecteerde periode is niet meer beschikbaar.');
+			}
+		}
+
+		$event->setPeriodPrices();
 		if((count($event->getPeriodPrices()) === 0)){ //  && empty($eventPackage) // TODO
 			throw new BadRequestHttpException(EO::t('recreation', 'De geselecteerde periode is niet meer beschikbaar.'));
 		}
@@ -615,7 +617,7 @@ class RecreationEventController extends Rest {
 			// samenstelling
 			if(count($compositions) > 0){
 				foreach($compositions AS $composition) {
-					$objectComposition	= RecreationObjectFacility::findOne($composition['composition_id']);
+					$objectComposition	= RecreationComposition::findOne($composition['composition_id']);
 
 					if (!empty($objectComposition)) {
 						$eventComposition					= new RecreationEventsComposition;
