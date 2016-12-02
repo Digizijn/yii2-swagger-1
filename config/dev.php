@@ -18,7 +18,8 @@ return [
 		],
 	],
 	'params' => [
-		'eo_url'	=> 'https://dev.everyoffice.nl/cmspanel/'
+		'eo_url'	=> 'https://dev.everyoffice.nl/cmspanel/',
+		'eo_ws_url'	=> 'http://dev.webservice.everyoffice.nl/soap',	//url van EveryOffice API omgeving
 	]
 ];
 
