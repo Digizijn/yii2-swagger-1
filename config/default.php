@@ -50,17 +50,19 @@ return [
 
         'mailer' => [
             'class' => \yii\swiftmailer\Mailer::className(),
-            'useFileTransport' => true,
+            'useFileTransport' => YII_DEBUG,
         ],
 
-        'log' => [
+		'log' => YII_ENV_PROD ?  [
             'traceLevel' => YII_DEBUG ? 3 : 0,
+//			'flushInterval' => 1,
             'targets' => [
 				[
 					'class'			=> \yii\log\EmailTarget::className(),
-					'levels'		=> ['error'],
-//					'categories'	=> [],
+					'exportInterval' => 1,
+					'levels'		=> ['error','warning'],
 					'except' => [
+						'yii\web\HttpException:401',
 						'yii\web\HttpException:404',
 					],
 					'prefix' => function ($message) {
@@ -70,20 +72,29 @@ return [
 					},
     				'logVars' => ['_SERVER', '_SESSION'],
 					'message'		=> [
-						'from'		=> [$_SERVER['SERVER_NAME'].' <error@digizijn.nl>'],
+						'from'		=> 'error@digizijn.nl',
 						'to'		=> 'error@digizijn.nl',
-						'subject'	=> 'ERROR php '.$_SERVER['SERVER_NAME'],
+						'subject'	=> 'ERROR '.$_SERVER['SERVER_NAME'],
 					]
 				],
-                [
-                    'class' 		=> \yii\log\FileTarget::className(),
-                    'levels' 		=> ['error', 'warning'],
+				[
+					'class' 		=> \yii\log\FileTarget::className(),
+					'levels' 		=> ['error', 'warning', 'info'],
+					'categories'	=> ['response'],
+					'logVars'		=> [],
+					'logFile'		=> '@runtime/logs/response.log',
+					'maxFileSize'	=> 1024 * 100,
+					'maxLogFiles'	=> 10,
+				],
+				[
+					'class' 		=> \yii\log\FileTarget::className(),
+					'levels' 		=> ['error', 'warning'],
 					'except' => [
 						'yii\web\HttpException:404',
 					],
-                ],
+				],
             ],
-        ],
+        ] : [],
         'db' => [
 			'class' 				=> \yii\db\Connection::className(),
 			'dsn' 					=> 'mysql:host=localhost;dbname=count-it',
@@ -105,25 +116,25 @@ return [
 
 
 
-		'cache' => [ // TODO Verplaatsen naar main config
-			'class' => 'yii\redis\Cache',
-		],
-
-		'session' => [ // TODO Verplaatsen naar main config
-			'class' => 'yii\redis\Session',
-		],
-
-		'redis' => [
-			'class' 	=> 'yii\redis\Connection',
-			'hostname' 	=> 'localhost',
-			'port' 		=> 6379,
-			'database' 	=> 0, // TODO serializer igbinary
-		],
-
-
-		'filecache'	=> [
-			'class'		=> \yii\caching\FileCache::className()
-		],
+//		'cache' => [ // TODO Verplaatsen naar main config
+//			'class' => 'yii\redis\Cache',
+//		],
+//
+//		'session' => [ // TODO Verplaatsen naar main config
+//			'class' => 'yii\redis\Session',
+//		],
+//
+//		'redis' => [
+//			'class' 	=> 'yii\redis\Connection',
+//			'hostname' 	=> 'localhost',
+//			'port' 		=> 6379,
+//			'database' 	=> 0, // TODO serializer igbinary
+//		],
+//
+//
+//		'filecache'	=> [
+//			'class'		=> \yii\caching\FileCache::className()
+//		],
 
 
 		'i18n' => [

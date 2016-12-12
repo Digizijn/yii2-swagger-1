@@ -3,17 +3,21 @@ namespace app\controllers;
 
 use DateInterval;
 use DateTime;
+use eo\base\ActiveQuery;
 use eo\base\database\RecreationEventsLog;
 use eo\base\EO;
 use eo\models\database\Products;
+use eo\models\database\RecreationCompositionExcludedProduct;
 use eo\models\database\RecreationEvents;
 use eo\models\database\RecreationEventsComposition;
 use eo\models\database\RecreationEventsState;
 use eo\models\database\RecreationObject;
+use eo\models\database\RecreationObjectTypeComposition;
 use eo\models\database\RecreationObjectTypeProduct;
 use eo\models\database\RecreationPackage;
 use eo\models\database\RecreationPackageProduct;
 use eo\models\database\RecreationPeriodPrice;
+use eo\models\database\RecreationPeriodProperties;
 use eo\models\database\RecreationPricingResponse;
 use eo\models\database\RecreationAvailibilityResponse;
 use eo\models\database\RecreationObjectType;
@@ -21,11 +25,18 @@ use eo\models\database\RecreationRentalPeriod;
 use eo\models\database\RecreationRentalProduct;
 use eo\models\database\RecreationRentalType;
 use eo\models\database\RecreationSourceExcludedProduct;
+use eo\models\database\StaffCompaniesOptions;
 use eo\models\database\WebsitePagesRecreationConnection;
+use eo\models\price\IPrice;
+use eo\models\price\Price;
+use eo\models\price\PriceFixed;
+use eo\models\price\RecreationObjectPrice;
+use eo\models\price\TotalPrice;
 use eo\models\RecreationBooking;
 use yii\db\Expression;
 use yii\helpers\ArrayHelper;
 use yii\web\BadRequestHttpException;
+use yii\web\HttpException;
 use yii\web\NotAcceptableHttpException;
 use yii\web\NotFoundHttpException;
 use yii\web\ServerErrorHttpException;
@@ -53,8 +64,10 @@ class RecreationBookingController extends Rest {
 	// Caching
 	protected static $periods 	= [];
 	protected static $prices 	= [];
-	protected static $sourceExcluded;
+	/** @var RecreationPeriodProperties[] */
+	protected static $properties	= [];
 	protected static $objectTypeProducts	= [];
+	protected static $sourceExcluded;
 	protected static $rentalProducts;
 	protected static $productExtras;
 
@@ -163,6 +176,10 @@ class RecreationBookingController extends Rest {
 		$objects = [];
 		if (!empty($object_id)) {
 			$object 	= RecreationObject::findOne((int)$object_id);
+			if (empty($object_id)) {
+				throw new NotFoundHttpException('Object niet geovnnden #'.$object_id);
+			}
+
 			if (!empty($object)) {
 				$objects	= [$object];
 			}
@@ -461,20 +478,28 @@ class RecreationBookingController extends Rest {
 				->andWhere(['rental_id' => $rentalIDs])
 				->all();
 
+			$enddate = clone $departureDate;
+			$enddate->add(new \DateInterval('P'.($max_nights+1).'D'));
+
 			/** @var $periodPrice RecreationPeriodPrice */
 			static::$prices = $baseprices = RecreationPeriodPrice::find()
-				->innerJoinWith(['period' => function($q) use ($arrivalDate, $departureDate) { // TODO subquery in having?
+				->innerJoinWith(['period' => function($q) use ($arrivalDate, $enddate) { // TODO subquery in having?
 					$q->andWhere('
 							"'.$arrivalDate->format('Y-m-d').'" BETWEEN period_startdate AND DATE_SUB(period_enddate, INTERVAL 1 DAY)
-							OR "'.$departureDate->format('Y-m-d').'" BETWEEN period_startdate AND DATE_SUB(period_enddate, INTERVAL 1 DAY)
-							OR period_startdate BETWEEN "'.$arrivalDate->format('Y-m-d').'" AND "'.$departureDate->format('Y-m-d').'"
-							OR DATE_SUB(period_enddate, INTERVAL 1 DAY) BETWEEN "'.$arrivalDate->format('Y-m-d').'" AND "'.$departureDate->format('Y-m-d').'"
+							OR "'.$enddate->format('Y-m-d').'" BETWEEN period_startdate AND DATE_SUB(period_enddate, INTERVAL 1 DAY)
+							OR period_startdate BETWEEN "'.$arrivalDate->format('Y-m-d').'" AND "'.$enddate->format('Y-m-d').'"
+							OR DATE_SUB(period_enddate, INTERVAL 1 DAY) BETWEEN "'.$arrivalDate->format('Y-m-d').'" AND "'.$enddate->format('Y-m-d').'"
 						');
 				}])
 				->andWhere(['rental_period_id' => ArrayHelper::map(static::$periods, 'period_id', 'period_id')])
 				->andWhere(['rental_id' => $rentalIDs])
 				->andWhere(['type_id' => $type->type_id])
 				->andWhere('price_amount IS NOT NULL')
+				->all();
+
+			static::$properties = RecreationPeriodProperties::find()
+				->andWhere(['rental_period_id' => ArrayHelper::map($baseprices, 'rental_period_id', 'rental_period_id')])
+				->andWhere(['rental_id' => $rentalIDs])
 				->all();
 
 			$rentals = RecreationRentalType::find()
@@ -500,12 +525,13 @@ class RecreationBookingController extends Rest {
 									/** @var RecreationRentalType $rental */
 									$rental 		= $rentals[$rentalPeriod->rental_id];
 									$periodEnddate 	= new DateTime($period->period_enddate);
+
 									$possible 		= $this->generatePossiblePeriods(
 										$price,
 										$rental,
 										$rentalPeriod,
-										max($min_nights, $rental->rental_min_nights),
-										min($max_nights, $startDate->diff($periodEnddate)->format('%a')),  // Binnen periode blijven
+										max($min_nights, 1),
+										min($max_nights, 365),  // Binnen periode blijven
 										$startDate
 									);
 
@@ -513,29 +539,134 @@ class RecreationBookingController extends Rest {
 										/** @var RecreationRentalPeriod $v */
 										$possibleResponse = array_unique(
 											array_map(
-												function($p) use ($startDate, $type, $rental, $persons) {
+												function($p) use ($startDate, $type, $rental, $persons, $max_nights) {
 													$nights = array_sum(
 														array_map(function($pp) {
-															$rentalPeriod = static::$periods[$pp->rental_period_id];
-															return $rentalPeriod->period_nights;
+															return $pp->period_nights;
 														}, $p)
 													);
 
+													if($nights > $max_nights){
+														return null;
+													}
+
+													// Alle rentalperiodcombinaties doorlopen
+													$currentDate = clone $startDate;
+													$selectedPrices = [];
+													$pminNights = 0;
+													foreach ($p as $i => $prentalPeriod) {
+														$isFirst = $i == 0;
+														$isLast = $i == count($p) - 1;
+
+														$possiblePrices = [];
+
+														$currentEndDate	= clone $currentDate;
+														$currentEndDate->add(new DateInterval('P'.$prentalPeriod->period_nights.'D'));
+
+														// Alle geldige prijzen erbij opzoeken
+														$pprices = [];
+														/** @var RecreationPeriodPrice $pprice */
+														foreach (static::$prices as $pprice) {
+															if (
+																$pprice->rental_id == $rental->rental_id &&
+																$pprice->type_id == $type->type_id &&
+																$pprice->rental_period_id == $prentalPeriod->period_id
+															) {
+																// Kijken of de periode geldig is
+																$pperiod = $pprice->period;
+																if (!empty($pperiod) &&
+																	$pperiod->period_startdate <= $currentDate->format('Y-m-d') &&
+																	$pperiod->period_enddate > $currentDate->format('Y-m-d')
+																) {
+																	$possiblePrices[] = $pprice;
+																}
+															}
+														}
+
+														// Laagste prijs pakken
+														$minPrice = null;
+														foreach ($possiblePrices as $possiblePrice) {
+															// Controleren op afwijkende eigenschappen
+															if (!empty(static::$properties)) {
+																$pproperties = [];
+																foreach (static::$properties as $pproperty) {
+																	if ($pproperty->rental_period_id == $prentalPeriod->period_id &&
+																		$pproperty->period_id == $possiblePrice->period_id &&
+																		$pproperty->rental_id == $rental->rental_id) {
+																		$pproperties[] = $pproperty;
+																	}
+																}
+
+																if (!empty($pproperties)) {
+																	$allow = false;
+																	foreach ($pproperties as $pproperty) {
+																		$startDow   = $currentDate->format('w') % 7;
+																		$endDow   	= $currentEndDate->format('w') % 7;
+
+																		$startdows 	= explode(',', $pproperty->property_startdays);
+																		$enddows 	= explode(',', $pproperty->property_enddays);
+
+
+																		// Alleen check voor eerste periode
+																		if ($isFirst && !empty($pproperty->property_startdays) && !in_array($startDow, $startdows, false)) {
+																			continue;
+																		}
+
+																		if ($isLast && !empty($pproperty->property_enddays) && !in_array($endDow, $enddows, false)) {
+																			continue;
+																		}
+
+																		if ($isFirst) {
+																			if (empty($pproperty->property_min_nights) || $pproperty->property_min_nights <= $nights) {
+																				$allow = $allow || true;
+																			}
+																		} else {
+																			$allow = $allow || true;
+																		}
+																	}
+
+																	if (!$allow) {
+																		return null;
+																	}
+																}
+															}
+
+															if (empty($minPrice) || $possiblePrice->price_amount < $minPrice->price_amount) {
+																$minPrice = $possiblePrice;
+															}
+														}
+
+														$currentDate = $currentEndDate;
+
+														if (empty($minPrice)) {
+															return null;
+														}
+
+														$selectedPrices[] = $minPrice;
+													}
+
+													$priceSum = array_sum(array_map(function($pp) {
+														return $pp->price_amount;
+													}, $selectedPrices));
+
+													$total = new PriceFixed($priceSum);
+
 													return [
-														'nights' => $nights,
+														'nights' => (int)$nights,
 														'rental_id' => $rental->rental_id,
-														'price' => array_sum(array_map(function($pp) {
-															return $pp->price_amount;
-														}, $p)),
+														'price' => $priceSum,
 														'period_price_id' => array_map(function($pp) {
 															return $pp->price_id;
-														}, $p),
+														}, $selectedPrices),
 			//											'tax' => $touristTax * $persons * $nights,
-														'products' => static::getExtras($type, $rental, $nights, $persons)
+														'products' => static::getExtras($type, $rental, $nights, $persons, null, [], 'website', $total)
 													];
 												}, $possible
 											), SORT_REGULAR
 										);
+
+										// Lege resultaten (zonder prijzen) eruit halen
+										$possibleResponse = array_filter($possibleResponse, function($v) { return !empty($v); } );
 
 										$startDateString = $startDate->format('Y-m-d');
 
@@ -574,7 +705,6 @@ class RecreationBookingController extends Rest {
 //					$bookablePeriods = array_unique($bookablePeriods, SORT_REGULAR);
 				}
 			}
-
 
 			$packages = RecreationPackage::find()
 				// Vua recreaction packcage period
@@ -616,6 +746,8 @@ class RecreationBookingController extends Rest {
 							// FIXME kijkt nu alleen naar aankomstdata??? TODO
 							// Alle te boeken periodes datums
 							foreach ($bookablePeriods as $startDate => $bookableDates) {
+								if ($startDate < $arrivalDate || $startDate > $departureDate)
+									continue;
 								$startDate 	= new DateTime($startDate);
 								// Alle boekbare periodes
 								foreach ($bookableDates as $bookableDate) {
@@ -636,14 +768,17 @@ class RecreationBookingController extends Rest {
 												if(in_array($startDate->format('w'), $packageDows, false)) {
 													$packageDate = $bookableDate;
 
+													$priceSum = $package->objectTypeConnection[0]->conn_price;
+													$price = new PriceFixed($priceSum);
+
 													$packageDate['label'] 		= $package->package_name;
 													$packageDate['package'] 	= $package->package_id;
 //													$packageDate['org_nights'] 	= $bookableDate['nights'];
 //													$packageDate['org_price'] 	= $packageDate['price'];
 													$packageDate['nights'] 		+= $n;
-													$packageDate['price'] 		+= $package->objectTypeConnection[0]->conn_price;
+													$packageDate['price'] 		+= $priceSum;
 													// Optimaliseren, kan gecached worden
-													$packageDate['products']	= static::getExtras($type, $package->rentalType, $nights, $persons, $package);; // TODO FIXME
+													$packageDate['products']	= static::getExtras($type, $package->rentalType, $nights, $persons, $package, [], 'website', $price); // TODO FIXME
 
 													$bookablePackagePeriods[$packageFirstPossibleDate->format('Y-m-d')][] = $packageDate;
 												}
@@ -698,13 +833,14 @@ class RecreationBookingController extends Rest {
 										$bookablePackagePeriods[$date->format('Y-m-d')] = [];
 									}
 
+									$price = new PriceFixed($package->objectTypeConnection[0]->conn_price);
 									$bookablePackagePeriods[$date->format('Y-m-d')][] = [
 										'label' 	=> $package->package_name,
 										'package'	=> $package->package_id,
 										'nights' 	=> (int)$packageNights,
-										'price'		=> $package->objectTypeConnection[0]->conn_price,
+										'price'		=> $price,
 										'rental_id'	=> $package->rental_id,
-										'products'	=> static::getExtras($type, $package->rentalType, $packageNights, $persons, $package)
+										'products'	=> static::getExtras($type, $package->rentalType, $packageNights, $persons, $package, [], 'website', $price)
 									];
 								}
 //								}
@@ -735,7 +871,7 @@ class RecreationBookingController extends Rest {
 
 
 	/** @return array */
-	static public function getExtras(RecreationObjectType $type, RecreationRentalType $rentalType, int $nightsAway, int $persons, RecreationPackage $package = null, $source = 'website') {
+	static public function getExtras(RecreationObjectType $type, RecreationRentalType $rentalType, int $nightsAway, int $persons, RecreationPackage $package = null, array $compositions = [], $source = 'website', IPrice $eventPrice = null) {
 		if (!empty(static::$productExtras[$type->type_id])) {
 			foreach (static::$productExtras[$type->type_id] as $extra) {
 				if (
@@ -754,9 +890,13 @@ class RecreationBookingController extends Rest {
 
 		$excludeTouristTax	= false;
 		$cancellation_fund_percentage	= 0;
+		$option							= StaffCompaniesOptions::find()->cache(ActiveQuery::LONG_CACHE)->andWhere(['opt_name' => 'recreation_cancellation_fund'])->one();
+		if(!empty($option)){
+			$cancellation_fund_percentage	= floatval(str_replace(',', '.', $option->opt_text));
+		}
 		$extras = [];
 
-		$excludedProducts	= [];//$this->getExcludedProducts();
+		$excludedProducts	= static::getExcludedProducts($compositions);
 
 		if (static::$sourceExcluded === null) {
 			static::$sourceExcluded = [];
@@ -804,13 +944,13 @@ class RecreationBookingController extends Rest {
 						continue;
 					}
 
-//					$isCancellationFund	= false;
-//					$predefinedType		= $typeProduct->product->predefinedType;
-//					if(!empty($predefinedType)){
-//						if($predefinedType->type_name === 'recreation_cancellation_fund'){
-//							$isCancellationFund	= true;
-//						}
-//					}
+					$isCancellationFund	= false;
+					$predefinedType		= $typeProduct->product->predefinedType;
+					if(!empty($predefinedType)){
+						if($predefinedType->type_name === 'recreation_cancellation_fund'){
+							$isCancellationFund	= true;
+						}
+					}
 
 					$amountOfPersons	= $persons;
 					$show				= false;
@@ -833,24 +973,27 @@ class RecreationBookingController extends Rest {
 
 					if($show === true){
 
-//						if($isCancellationFund === true && $cancellation_fund_percentage > 0){
-//
+						if($isCancellationFund === true && $cancellation_fund_percentage > 0){//
+							if (empty($eventPrice)) {
+								throw new ServerErrorHttpException('Cancellation fund without event price');
+							}
 //							/** @var $tmpProduct Products */
-//							$tmpProduct					= clone $typeProduct->product;
-//							$tmpPrice					= $tmpProduct->getPrice();
+							$tmpProduct					= clone $typeProduct->product;
+							$tmpPrice					= $tmpProduct->getPrice();
 //
-//							$objectPrice					 = $event->getObjectPrice()->getInclusive(false);
-//							$objectDiscount					 = $event->getObjectPrice()->getDiscountAmount(true);
-//							$objectPrice					-= $objectDiscount;
-//							$typeProduct->product_price		 = $objectPrice * ($cancellation_fund_percentage / 100);
-//							$tmpPrice->setFixedPrice($typeProduct->product_price);
+							$objectPrice				= $eventPrice->getInclusive(false);
+							$objectDiscount				= $eventPrice->getDiscountAmount(true);
+							$objectPrice				-= $objectDiscount;
+							$typeProduct->product_price	= $objectPrice * ($cancellation_fund_percentage / 100);
+							$tmpPrice->setFixedPrice($typeProduct->product_price);
 //
-//							$typeExcl		= $tmpPrice->getExclusive(true);
-//							$typeVat		= $tmpPrice->getVatAmount(true);
-//						} else {
+							$typeExcl		= $tmpPrice->getExclusive(true);
+							$typeVat		= $tmpPrice->getVatAmount(true);
+						} else {
 							$typeProduct->setAmountNights($nightsAway);
 
 							$compositionPersons	= $amountOfPersons;
+
 							if(isset($excludedProducts[$typeProduct->product_artid])){
 								$compositionPersons	-= $excludedProducts[$typeProduct->product_artid];
 								if($compositionPersons < 0){
@@ -862,7 +1005,7 @@ class RecreationBookingController extends Rest {
 
 							$typeExcl		= $typeProduct->getExlusive(false); // TODO discounted?
 							$typeVat		= $typeProduct->getVatAmount(false); // TODO discounted?
-//						}
+						}
 						$extras[]		= [
 							'product_id'	=> $typeProduct->product_id,
 							'art_id'		=> $typeProduct->product_artid,
@@ -897,17 +1040,6 @@ class RecreationBookingController extends Rest {
 
 			$rentalProducts = static::$rentalProducts[$rentalType->rental_id];
 
-//			if ($rentalType->rental_id == 36) {
-//				die(
-//				RecreationRentalProduct::find()->cache()
-//					->innerJoinWith(['product' => function($q) {
-//						$q->joinWith('predefinedType');
-//					}])
-//					->andWhere(['rental_id' => $rentalType->rental_id])->createCommand()->rawSql
-//
-//				);
-//			}
-
 			if(count($rentalProducts) > 0){
 				/** @var $rentalProducts RecreationRentalProduct[] */
 				foreach($rentalProducts AS $rentalProduct){
@@ -918,13 +1050,13 @@ class RecreationBookingController extends Rest {
 						continue;
 					}
 
-//					$isCancellationFund	= false;
-//					$predefinedType		= $rentalProduct->product->predefinedType;
-//					if(!empty($predefinedType)){
-//						if($predefinedType->type_name === 'recreation_cancellation_fund'){
-//							$isCancellationFund	= true;
-//						}
-//					}
+					$isCancellationFund	= false;
+					$predefinedType		= $rentalProduct->product->predefinedType;
+					if(!empty($predefinedType)){
+						if($predefinedType->type_name === 'recreation_cancellation_fund'){
+							$isCancellationFund	= true;
+						}
+					}
 
 					$compositionPersons	= $persons;
 					if(isset($excludedProducts[$rentalProduct->product_artid])){
@@ -937,25 +1069,27 @@ class RecreationBookingController extends Rest {
 					$rentalProduct->setAmountNights($nightsAway);
 					$rentalProduct->setAmountPersons($compositionPersons);
 
-//					if($isCancellationFund === true && $cancellation_fund_percentage > 0){
-//						/** @var $tmpProduct Products */
-//						$tmpProduct					= clone $rentalProduct->product;
-//						$tmpPrice					= $tmpProduct->getPrice();
-//
-//
-//						$objectPrice						 = $event->getObjectPrice()->getInclusive(false);
-//						$objectDiscount						 = $event->getObjectPrice()->getDiscountAmount(true);
-//						$objectPrice						-= $objectDiscount;
-//						$rentalProduct->product_price		 = $objectPrice * ($cancellation_fund_percentage / 100);
-//						$tmpPrice->setFixedPrice($rentalProduct->product_price);
-//
-//						$rentalExcl		= $tmpPrice->getExclusive(true);
-//						$rentalVat		= $tmpPrice->getVatAmount(true);
-//					} else {
+					if($isCancellationFund === true && $cancellation_fund_percentage > 0){
+						if (empty($objectPrice)) {
+							throw new ServerErrorHttpException('Cancellation fund without object price');
+						}
+
+						/** @var $tmpProduct Products */
+						$tmpProduct					= clone $rentalProduct->product;
+						$tmpPrice					= $tmpProduct->getPrice();
+
+						$objectPrice				= $eventPrice->getInclusive(false);
+						$objectDiscount				= $eventPrice->getDiscountAmount(true);
+						$objectPrice				-= $objectDiscount;
+						$rentalProduct->product_price	 = $objectPrice * ($cancellation_fund_percentage / 100);
+						$tmpPrice->setFixedPrice($rentalProduct->product_price);
+
+						$rentalExcl		= $tmpPrice->getExclusive(true);
+						$rentalVat		= $tmpPrice->getVatAmount(true);
+					} else {
 						$rentalExcl		= $rentalProduct->getExlusive(false); // TODO discounted?
 						$rentalVat		= $rentalProduct->getVatAmount(false); // TODO discounted?
-//					}
-
+					}
 
 					$extras[]		= [
 						'product_id'	=> $rentalProduct->product_id,
@@ -996,13 +1130,13 @@ class RecreationBookingController extends Rest {
 						continue;
 					}
 
-//						$isCancellationFund	= false;
-//						$predefinedType		= $packageProduct->product->predefinedType;
-//						if(!empty($predefinedType)){
-//							if($predefinedType->type_name == 'recreation_cancellation_fund'){
-//								$isCancellationFund	= true;
-//							}
-//						}
+					$isCancellationFund	= false;
+					$predefinedType		= $packageProduct->product->predefinedType;
+					if(!empty($predefinedType)){
+						if($predefinedType->type_name === 'recreation_cancellation_fund'){
+							$isCancellationFund	= true;
+						}
+					}
 
 					$amountOfPersons	= $persons;
 					$show				= false;
@@ -1024,35 +1158,38 @@ class RecreationBookingController extends Rest {
 					}
 
 					if ($show === true){//
-//							if($isCancellationFund === true && $cancellation_fund_percentage > 0){
-//								/** @var $tmpProduct Products */
-//								$tmpProduct					= clone $packageProduct->product;
-//								$tmpPrice					= $tmpProduct->getPrice();
-//
-//								$objectPrice					 = $event->getObjectPrice()->getInclusive(false);
-//								$objectDiscount					 = $event->getObjectPrice()->getDiscountAmount(true);
-//								$objectPrice					-= $objectDiscount;
-//								$packageProduct->conn_price      = $objectPrice * ($cancellation_fund_percentage / 100);
-//								$tmpPrice->setFixedPrice($packageProduct->conn_price);
-//
-//								$packageExcl		= $tmpPrice->getExclusive(true);
-//								$packageVat		    = $tmpPrice->getVatAmount(true);
-//							} else {
-							$packageProduct->setAmountNights($nightsAway);
-
-							$compositionPersons	= $amountOfPersons;
-							if(isset($excludedProducts[$packageProduct->product_id])){
-								$compositionPersons	-= $excludedProducts[$packageProduct->product_id];
-								if($compositionPersons < 0){
-									$compositionPersons	= 0;
+							if($isCancellationFund === true && $cancellation_fund_percentage > 0){
+								if (empty($objectPrice)) {
+									throw new ServerErrorHttpException('Cancellation fund without object price');
 								}
+								/** @var $tmpProduct Products */
+								$tmpProduct					= clone $packageProduct->product;
+								$tmpPrice					= $tmpProduct->getPrice();
+
+								$objectPrice				= $eventPrice->getInclusive(false);
+								$objectDiscount				= $eventPrice->getDiscountAmount(true);
+								$objectPrice				-= $objectDiscount;
+								$packageProduct->conn_price = $objectPrice * ($cancellation_fund_percentage / 100);
+								$tmpPrice->setFixedPrice($packageProduct->conn_price);
+
+								$packageExcl		= $tmpPrice->getExclusive(true);
+								$packageVat		    = $tmpPrice->getVatAmount(true);
+							} else {
+								$packageProduct->setAmountNights($nightsAway);
+
+								$compositionPersons	= $amountOfPersons;
+								if(isset($excludedProducts[$packageProduct->product_id])){
+									$compositionPersons	-= $excludedProducts[$packageProduct->product_id];
+									if($compositionPersons < 0){
+										$compositionPersons	= 0;
+									}
+								}
+
+								$packageProduct->setAmountPersons($compositionPersons);
+
+								$packageExcl		= $packageProduct->getExlusive(true);
+								$packageVat		    = $packageProduct->getVatAmount(true);
 							}
-
-							$packageProduct->setAmountPersons($compositionPersons);
-
-							$packageExcl		= $packageProduct->getExlusive(true);
-							$packageVat		    = $packageProduct->getVatAmount(true);
-//							}
 
 						$extras[] = [
 							'id'				=> $packageProduct->conn_id,
@@ -1200,6 +1337,31 @@ class RecreationBookingController extends Rest {
 
 
 	/** @return array */
+	static public function getExcludedProducts($compositions = []){
+		$excludedProducts	= [];
+
+		if (!empty($compositions)) {
+			$compositionInfo		= ArrayHelper::map($compositions, 'composition_id', 'conn_amount');
+
+			$products	= RecreationCompositionExcludedProduct::find()->cache(ActiveQuery::SHORT_CACHE)
+				->andWhere(['composition_id' => array_keys($compositionInfo)])
+				->all();
+
+			if(!empty($products)){
+				foreach($products as $product){
+					if(!isset($excludedProducts[$product->product_id])){
+						$excludedProducts[$product->product_id]	= 0;
+					}
+					$excludedProducts[$product->product_id]	+= (int)$compositionInfo[$product->composition_id];
+				}
+			}
+		}
+
+		return $excludedProducts;
+	}
+
+
+	/** @return array */
 	private function generatePossiblePeriods(RecreationPeriodPrice $price, RecreationRentalType $rental, RecreationRentalPeriod $rentalPeriod, int $min_nights, int $max_nights, DateTime $dateStep) {
 		if (empty($min_nights)) $min_nights= 0;
 		$possible	= [];
@@ -1219,21 +1381,20 @@ class RecreationBookingController extends Rest {
 
 		$periods 	= [];
 		if(in_array($startDow, $periodStartdays, false) && $rentalPeriod->period_nights <= $nightsLeft){
-			$periods[]	 = $price;
+			$periods[]	 = $rentalPeriod;
 			$nightsLeft	-= $rentalPeriod->period_nights;
+
 			if ($max_nights - $nightsLeft >= $min_nights) {
 				$possible[]	 = $periods;
-			}
 
-			if($nightsLeft > 0 && $rentalPeriod->period_repeat === 'ja' && $rentalPeriod->period_nights > 0){
-				while($nightsLeft >= $rentalPeriod->period_nights) { // TODO FIXME check current dow
-					$periods[]	 = $price;
-					$nightsLeft	-= $rentalPeriod->period_nights;
-					if ($max_nights - $nightsLeft >= $min_nights) {
-						$possible[]	 = $periods;
-					}
-				}
-			}
+				if($nightsLeft > 0 && $rentalPeriod->period_repeat === 'ja' && $rentalPeriod->period_nights > 0){
+					$periods1 = $periods;
+					while($nightsLeft >= $rentalPeriod->period_nights) { // TODO FIXME check current dow
+						$periods1[]	 = $rentalPeriod;
+						$nightsLeft	-= $rentalPeriod->period_nights;
+						if ($max_nights - $nightsLeft >= $min_nights) {
+							$possible[]	 = $periods1;
+						}
 
 			if($nightsLeft > 0 && !empty($rentalPeriod->period_expandable)){
 				$expendablePeriods 	= explode(',', $rentalPeriod->period_expandable);
@@ -1241,8 +1402,10 @@ class RecreationBookingController extends Rest {
 					static::$prices,
 					function($v) use ($expendablePeriods, $rental) {
 						/** @var RecreationPeriodPrice $v */
-						return in_array($v->rental_period_id, $expendablePeriods, false)
-							&& $v->rental_id === $rental->rental_id; // type
+						return $v->rental_id === $rental->rental_id &&
+							in_array($v->rental_period_id, $expendablePeriods, false);
+
+							// Type?
 					}
 				);
 
@@ -1257,7 +1420,7 @@ class RecreationBookingController extends Rest {
 
 					foreach ($expendablePrices as $expendablePrice) {
 						$expandableNightsleft	= $nightsLeft;
-						$expandablePeriod = static::$periods[$expendablePrice->rental_period_id];
+						$expandablePeriod 		= static::$periods[$expendablePrice->rental_period_id];
 
 						if ($expandableNightsleft >= $expandablePeriod->period_startdays && $expandablePeriod->period_nights > 0) {
 							$currentDow	= ($startDow + ($max_nights - $expandableNightsleft)) % 7;
@@ -1270,22 +1433,25 @@ class RecreationBookingController extends Rest {
 							if (in_array($currentDow, $expandableDow, false)) {
 								if ($expandablePeriod->period_repeat === 'ja') {
 									while ($expandableNightsleft >= $expandablePeriod->period_nights) {
-										$periods[]	 = $expendablePrice;
+										$periods1[]	 = $expandablePeriod;
 										$expandableNightsleft	-= $expandablePeriod->period_nights; // TODO
 										if ($max_nights - $expandableNightsleft >= $min_nights) {
-											$possible[]	 = $periods;
+											$possible[]	 = $periods1;
 										}
 									}
 								} else {
-									$periods[]	 = $expendablePrice;
+									$periods1[]	 = $expandablePeriod;
 									$expandableNightsleft	-= $expandablePeriod->period_nights;
 									if ($max_nights - $expandableNightsleft >= $min_nights) {
-										$possible[]	 = $periods;
+										$possible[]	 = $periods1;
 									}
 								}
 							}
 						}
 					}
+				}
+			}
+		}
 				}
 			}
 		}
@@ -1413,7 +1579,7 @@ class RecreationBookingController extends Rest {
 		$now			= new DateTime();
 
 		if (empty($type)) {
-			throw new BadRequestHttpException('No objecttype received');
+			throw new BadRequestHttpException('No valid objecttype received');
 		}
 
 		if (empty($arrivalDate) || $arrivalDate < $now) {
@@ -1477,7 +1643,7 @@ class RecreationBookingController extends Rest {
 
 		$optionState  = RecreationEventsState::find()->where(['state_type' => 'offerte'])->one();
 		if (empty($optionState)) {
-			throw new BadRequestHttpException('Option/block not available');
+			throw new BadRequestHttpException('Option/block not available, no state type `offerte`');
 		}
 
 		$relation_id = 0;
@@ -1538,13 +1704,13 @@ class RecreationBookingController extends Rest {
 		$event->event_reservation_nr			= RecreationEvents::nextReservationNr($arrivalDate);
 		$event->event_arrivaldate				= $arrivalDate->format('Y-m-d').' '.$checkin;
 		$event->event_departuredate				= $departureDate->format('Y-m-d').' '.$checkout;
-		$event->event_amount_persons			= 1;
 		$event->event_objectprice_exclusive		= 0;
 		$event->event_objectprice_vat			= 0;
 		$event->event_objectprice_manual		= 'ja';
 		$event->event_blockdate					= $expire->format('Y-m-d H:i:s');
 		$event->event_createdate				= new Expression('NOW()');
 		$event->event_createuser				= $user->identity->user_id;
+		$event->event_amount_persons			= 1;
 
 
 		if (!$event->save()) {

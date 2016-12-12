@@ -32,13 +32,13 @@
         "mobidev/yii2-swagger": "dev-master",
         "machour/yii2-swagger-api": "dev-master",
         "tunecino/yii2-nested-rest": "^0.2.0",
-        "yiisoft/yii2-redis": "^2.0"
+        "yiisoft/yii2-redis": "^2.0",
     },
     "require-dev": {
-        "yiisoft/yii2-codeception": "*",
         "yiisoft/yii2-debug": "*",
         "yiisoft/yii2-gii": "*",
-        "yiisoft/yii2-faker": "*"
+        "yiisoft/yii2-faker": "*",
+	  	"yiisoft/yii2-codeception": "^2.0"
     },
 
     "config": {

@@ -29,7 +29,7 @@ defined('YII_ENV_TEST') or define('YII_ENV_TEST', YII_ENV === 'test');
 /**
  * Whether the application should cache shit
  */
-defined('YII_CACHE') or define('YII_CACHE', !YII_ENV_DEV && !isset($_GET['no-cache']));
+defined('YII_CACHE') or define('YII_CACHE', YII_ENV_PROD && !isset($_GET['no-cache']));
 
 /**
  * This constant defines whether error handling should be enabled. Defaults to true.

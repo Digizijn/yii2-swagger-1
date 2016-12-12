@@ -116,13 +116,13 @@ $config = ArrayHelper::merge(
 						'class' => \tunecino\nestedrest\UrlRule::class,
 //						'controller' => ['facilities' => 'recreation-object-facilities'],
 						'modelClass'  => \eo\models\database\RecreationObject::class,
+						'resourceName' => 'recreation/objects',
 						'relations' => [
 							'objectType' 	=> ['objecttype' 		=> 'recreation-object-type'],
 							'facilities' 	=> ['facilities' 		=> 'recreation-object-facilities'],
 							'rentalPeriod' 	=> ['rentalperiods' 	=> 'recreation-rental-period'],
 							'rentalType' 	=> ['rentaltypes' 		=> 'recreation-rental-type'],
 						],
-						'resourceName' => 'recreation\/objects',
 					],
 					[
 						'class' => \yii\rest\UrlRule::class,
@@ -136,7 +136,7 @@ $config = ArrayHelper::merge(
 					[
 						'class' 		=> \tunecino\nestedrest\UrlRule::class,
 						'modelClass'  	=> \eo\models\database\RecreationObjectType::class,
-						'resourceName' 	=> 'recreation\/objecttypes',
+						'resourceName' 	=> 'recreation/objecttypes',
         				'relations' 	=> [
 							'facilities' 	=> ['facilities' 	=> 'recreation-object-facilities'],
 							'rentalTypes' 	=> ['rentaltypes' 	=> 'recreation-rental-type'],
@@ -157,7 +157,7 @@ $config = ArrayHelper::merge(
 					[
 						'class' 		=> \tunecino\nestedrest\UrlRule::class,
 						'modelClass'  	=> \eo\models\database\RecreationObjectFacility::class,
-						'resourceName' 	=> 'recreation\/facilities',
+						'resourceName' 	=> 'recreation/facilities',
 						'relations' 	=> [
 							'objects' 		=> ['objects' 		=> 'recreation-object'],
 							'objecttypes' 	=> ['objecttypes' 	=> 'recreation-object-type'],
@@ -185,7 +185,7 @@ $config = ArrayHelper::merge(
 					[
 						'class' 		=> \tunecino\nestedrest\UrlRule::class,
 						'modelClass'  	=> \eo\models\database\RecreationPackage::class,
-						'resourceName' 	=> 'recreation\/packages',
+						'resourceName' 	=> 'recreation/packages',
 						'relations' 	=> [
 							'periods' 		=> ['periods' 		=> 'recreation-period'],
 							'objectType' 	=> ['objecttypes' 	=> 'recreation-object-type'],
@@ -205,7 +205,7 @@ $config = ArrayHelper::merge(
 					[
 						'class' 		=> \tunecino\nestedrest\UrlRule::class,
 						'modelClass'  	=> \eo\models\database\RecreationRentalPeriod::class,
-						'resourceName' 	=> 'recreation\/rentalperiods',
+						'resourceName' 	=> 'recreation/rentalperiods',
 						'relations' 	=> [
 							'rentalType' 	=> ['rentaltype' 	=> 'recreation-rental-type'],
 							'product' 		=> ['product' 		=> 'product'],
@@ -259,7 +259,7 @@ $config = ArrayHelper::merge(
 					[
 						'class' 		=> \tunecino\nestedrest\UrlRule::class,
 						'modelClass'  	=> \eo\models\database\RecreationEventsComposition::class,
-						'resourceName' 	=> 'recreation\/events\/compositions',
+						'resourceName' 	=> 'recreation/events/compositions',
 						'relations' 	=> [
 							'event' 	=> ['event' 	=> 'recreation-event'],
 						],
@@ -276,7 +276,7 @@ $config = ArrayHelper::merge(
 					[
 						'class' 		=> \tunecino\nestedrest\UrlRule::class,
 						'modelClass'  	=> \eo\models\database\RecreationRentalType::class,
-						'resourceName' 	=> 'recreation\/rentaltypes',
+						'resourceName' 	=> 'recreation/rentaltypes',
 						'relations' 	=> [
 							'rentalPeriod' 	=> ['rentalperiods' => 'recreation-rental-period'],
 							'object' 		=> ['objects' 		=> 'recreation-object'],
@@ -306,7 +306,7 @@ $config = ArrayHelper::merge(
 					[
 						'class' 		=> \tunecino\nestedrest\UrlRule::class,
 						'modelClass'  	=> \eo\models\database\RecreationEvents::class,
-						'resourceName' 	=> 'recreation\/events',
+						'resourceName' 	=> 'recreation/events',
 						'relations' 	=> [
 							'object' 		=> ['objects' 		=> 'recreation-object'],
 							'invoices' 		=> ['invoices' 		=> 'invoices'],
@@ -326,16 +326,24 @@ $config = ArrayHelper::merge(
 							'GET swagger.json' => 'documentation',
 						],
 					],
+					[
+						'class'		 	=> \yii\rest\UrlRule::class,
+						'controller' 	=> ['mailingtypes' => 'mailing-type'],
+						'except' 		=> ['delete', 'create'],
+						'extraPatterns' => [
+							'GET swagger.json' 	=> 'documentation',
+						],
+					],
 
-
-					'recreation/booking/nights' 			=> 'recreation-booking/nights', // TODO samenvoegen met bovestaande regel
-					'recreation/booking/availability' 		=> 'recreation-booking/availability', // TODO samenvoegen met bovestaande regel
-					'recreation/booking/first-available' 	=> 'recreation-booking/first-available', // TODO samenvoegen met bovestaande regel
-//					'recreation/booking/pricing2' 			=> 'recreation-booking/pricing-oud', // TODO samenvoegen met bovestaande regel
-					'recreation/booking/pricing' 			=> 'recreation-booking/pricing', // TODO samenvoegen met bovestaande regel
-					'recreation/booking/block' 				=> 'recreation-booking/block', // TODO samenvoegen met bovestaande regel
-					'recreation/booking/block/<block_id:\d+>/cancel' 	=> 'recreation-booking/block-cancel', // TODO samenvoegen met bovestaande regel
-					'recreation/events/calculate' 			=> 'recreation-event/calculate', // TODO samenvoegen met bovestaande regel
+					'recreation/booking/nights' 			=> 'recreation-booking/nights',
+					'recreation/booking/availability' 		=> 'recreation-booking/availability',
+					'recreation/booking/first-available' 	=> 'recreation-booking/first-available',
+					'recreation/booking/pricing' 			=> 'recreation-booking/pricing',
+					'recreation/booking/block' 				=> 'recreation-booking/block',
+					'recreation/events/calculate' 			=> 'recreation-event/calculate',
+					'recreation/booking/block/<block_id:\d+>/cancel' 	=> 'recreation-booking/block-cancel',
+					'mailingtypes/<id:\d+>/subscribe'			=> 'mailing-type/subscribe',
+					'mailingtypes/<id:\d+>/unsubscribe'		=> 'mailing-type/unsubscribe',
 
 					'documentation' => 'swagger',
                 	'test' => 'test',

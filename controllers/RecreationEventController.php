@@ -259,6 +259,8 @@ class RecreationEventController extends Rest {
 //			throw new BadRequestHttpException('No objecttype received');
 //		}
 
+		// TODO FIXME package
+
 		if (empty($arrivalDate) || $arrivalDate < $now) {
 			throw new BadRequestHttpException('Invalid arrival date');
 		}
@@ -308,7 +310,7 @@ class RecreationEventController extends Rest {
 		$event->object_id						= $object_id;
 		$event->setObjectType($object->type);
 		if (!empty($rental_ids)) {
-			$event->rental_id						= $rental_ids[0];
+			$event->rental_id					= $rental_ids[0];
 		}
 		$event->setAllowedRentalIDs($rental_ids);
 		$event->setArrivalDate($arrivalDate);
@@ -325,15 +327,37 @@ class RecreationEventController extends Rest {
 
 		// samenstelling
 		$eventCompositions = [];
+		$amountOfPersons	= 0;
 		if(count($compositions) > 0){
+//			$objectComposition	= RecreationComposition::findOne($composition['composition_id']);
+//
+//			if (!empty($objectComposition)) {
+//				$eventComposition					= new RecreationEventsComposition;
+//				$eventComposition->event_id			= $eventId;
+//				$eventComposition->composition_id	= $composition['composition_id'];
+//				$eventComposition->conn_amount		= $composition['amount'];
+//				if (!$eventComposition->save()) {
+//					throw new ServerErrorHttpException('Kon samenstelling niet opslaan '.print_r($eventComposition->getErrors(), true));
+//				}
+//			} else {
+//				throw new BadRequestHttpException('Ongeldige samenstelling #'.$composition['composition_id']);
+//			}
 			foreach($compositions AS $composition) {
-				$eventComposition					= new RecreationEventsComposition;
-				$eventComposition->composition_id	= $composition['composition_id'];
-				$eventComposition->conn_amount		= $composition['amount'];
+				$objectComposition	= RecreationComposition::findOne($composition['composition_id']);
+				if (!empty($objectComposition)) {
+					$eventComposition					= new RecreationEventsComposition;
+					$eventComposition->composition_id	= $composition['composition_id'];
+					$eventComposition->conn_amount		= $composition['amount'];
 
-				$eventCompositions[]	= $eventComposition;
+					$amountOfPersons	+= (int)$composition['amount'];
+
+					$eventCompositions[]	= $eventComposition;
+				} else {
+					throw new BadRequestHttpException('Ongeldige samenstelling #'.$composition['composition_id']);
+				}
 			}
 		}
+		$event->event_amount_persons			= $amountOfPersons;
 		$event->setComposition($eventCompositions);
 
 		// Gaat niet altijd goed ja/nee ea
@@ -352,10 +376,10 @@ class RecreationEventController extends Rest {
 		}
 		$event->setFacilities($eventFacilities);
 
-		// TODO werkt nog niet
 		$productOrder	= 0;
 		$eventProducts = [];
-		$extras = ArrayHelper::merge($extras, RecreationBookingController::getExtras($object->type, $event->rentalType, $event->getAmountNights(), $event->event_amount_persons, null)); // TODO FIXME package
+		$defaultExtra = RecreationBookingController::getExtras($object->type, $event->rentalType, $event->getAmountNights(), $event->event_amount_persons, null, $eventCompositions, 'website', $event->getPrice());
+		$extras = ArrayHelper::merge($extras, $defaultExtra); // TODO FIXME package
 		foreach ($extras AS $extra) {
 			/** @var Products $objectExtra */
 			$objectExtra = Products::findOne($extra['art_id']);
@@ -364,7 +388,6 @@ class RecreationEventController extends Rest {
 			}
 			/** @var ProductPrice $objectExtraPrice */
 			$objectExtraPrice =	$objectExtra->getPrice();
-
 			$eventProduct							= new RecreationEventsProducts;
 			$eventProduct->product_artid			= $objectExtra->product_id;
 			$eventProduct->product_amount			= $extra['amount'] 		?? 1;
@@ -373,9 +396,9 @@ class RecreationEventController extends Rest {
 			$eventProduct->product_excl				= $extra['excl'] 		?? $objectExtraPrice->getExclusive(true);
 			$eventProduct->product_vat				= $extra['vat'] 		?? $objectExtraPrice->getVatAmount();
 			$eventProduct->product_per				= $extra['per'] 		?? 'p.s.';
-			$eventProduct->product_per				= $extra['from'] 		?? null;
-			$eventProduct->product_per				= $extra['till'] 		?? null;
-			$eventProduct->product_per				= $extra['from_type'] 	?? null;
+			$eventProduct->product_from				= $extra['from'] 		?? null;
+			$eventProduct->product_till				= $extra['till'] 		?? null;
+			$eventProduct->product_from_type		= $extra['from_type'] 	?? null;
 			$eventProduct->product_bail				= $extra['bail'] 		? 'ja' : 'nee';
 			$eventProduct->product_discount			= 0;
 			$eventProduct->product_order			= $productOrder++;
@@ -399,7 +422,6 @@ class RecreationEventController extends Rest {
 //				}
 //			}
 //		}
-
 
 		// Samenstelling
 		return [
@@ -555,15 +577,15 @@ class RecreationEventController extends Rest {
 
 		$eventId 			= $event->event_id; 		// TODO Dirty hack om prijs te herberekenen na blokkeren
 		$event->event_id	= 0;  						// TODO Dirty hack om prijs te herberekenen na blokkeren
-		$price				= $event->getObjectPrice();
+//		$price				= $event->getObjectPrice();
 
 //		$eventProductID		= $price->getProduct()->product_id;
-		$objectPrice		= $price->getInclusive(false);
-		$objectPriceExcl	= $price->getExclusive(false);
-		$objectPriceVat		= $objectPrice - $objectPriceExcl;
-		$objectDiscount		= $price->getDiscountAmount(true);
-		$objectDiscountExcl	= $price->getDiscountAmount(false);
-		$objectDiscountVat	= $objectDiscount - $objectDiscountExcl;
+//		$objectPrice		= $price->getInclusive(false);
+//		$objectPriceExcl	= $price->getExclusive(false);
+//		$objectPriceVat		= $objectPrice - $objectPriceExcl;
+//		$objectDiscount		= $price->getDiscountAmount(true);
+//		$objectDiscountExcl	= $price->getDiscountAmount(false);
+//		$objectDiscountVat	= $objectDiscount - $objectDiscountExcl;
 
 		$event->event_id 	= $eventId; 				// TODO Dirty hack om prijs te herberekenen na blokkeren
 
@@ -596,15 +618,16 @@ class RecreationEventController extends Rest {
 		$event->event_departuredate				= $departureDate->format('Y-m-d').' '.$checkout;
 		$event->event_preferencebooking			= $preferable ? 'ja' : 'nee';
 		$event->event_amount_persons			= 1;
-		$event->event_objectprice		        = $objectPrice;
-		$event->event_objectdiscount	        = $objectDiscount;
-		$event->event_objectprice_exclusive		= $objectPriceExcl;
-		$event->event_objectdiscount_exclusive	= $objectDiscountExcl;
-		$event->event_objectprice_vat	        = $objectPriceVat;
-		$event->event_objectdiscount_vat        = $objectDiscountVat;
+		$event->event_objectprice		        = 0;//$objectPrice;
+		$event->event_objectdiscount	        = 0;//$objectDiscount;
+		$event->event_objectprice_exclusive		= 0;//$objectPriceExcl;
+		$event->event_objectdiscount_exclusive	= 0;//$objectDiscountExcl;
+		$event->event_objectprice_vat	        = 0;//$objectPriceVat;
+		$event->event_objectdiscount_vat        = 0;//$objectDiscountVat;
 		$event->event_source			        = 'website';
-		$event->event_objectprice_manual		= 'ja';
+		$event->event_objectprice_manual		= 'nee';
 		$event->event_invoice_meter_readings    = $invoice_meter_readings;
+
 
 		$transaction = EO::$app->db->beginTransaction();
 		try {
@@ -615,6 +638,8 @@ class RecreationEventController extends Rest {
 			$eventId = $event->event_id;
 
 			// samenstelling
+			$eventCompositions = [];
+			$amountOfPersons	= 0;
 			if(count($compositions) > 0){
 				foreach($compositions AS $composition) {
 					$objectComposition	= RecreationComposition::findOne($composition['composition_id']);
@@ -624,38 +649,82 @@ class RecreationEventController extends Rest {
 						$eventComposition->event_id			= $eventId;
 						$eventComposition->composition_id	= $composition['composition_id'];
 						$eventComposition->conn_amount		= $composition['amount'];
+
+						$amountOfPersons	+= (int)$composition['amount'];
+
 						if (!$eventComposition->save()) {
 							throw new ServerErrorHttpException('Kon samenstelling niet opslaan '.print_r($eventComposition->getErrors(), true));
+						} else {
+							$eventCompositions[] = $eventComposition;
 						}
 					} else {
 						throw new BadRequestHttpException('Ongeldige samenstelling #'.$composition['composition_id']);
 					}
 				}
 			}
-			// setComposition // TODO
+			$event->event_amount_persons			= $amountOfPersons;
+			$event->setComposition($eventCompositions);
+
+
+			$eventId 			= $event->event_id; 		// TODO Dirty hack om prijs te herberekenen na blokkeren
+			$event->event_id	= 0;
+			$price				= $event->getObjectPrice();
+
+	//		$eventProductID		= $price->getProduct()->product_id;
+			$objectPrice		= $price->getInclusive(false);
+			$objectPriceExcl	= $price->getExclusive(false);
+			$objectPriceVat		= $objectPrice - $objectPriceExcl;
+			$objectDiscount		= $price->getDiscountAmount(true);
+			$objectDiscountExcl	= $price->getDiscountAmount(false);
+			$objectDiscountVat	= $objectDiscount - $objectDiscountExcl;
+
+			$event->event_objectprice		        = $objectPrice;
+			$event->event_objectdiscount	        = $objectDiscount;
+			$event->event_objectprice_exclusive		= $objectPriceExcl;
+			$event->event_objectdiscount_exclusive	= $objectDiscountExcl;
+			$event->event_objectprice_vat	        = $objectPriceVat;
+			$event->event_objectdiscount_vat        = $objectDiscountVat;
+			$event->event_id 	= $eventId; 				// TODO Dirty hack om prijs te herberekenen na blokkeren
+
+			if (!$event->save()) {
+				die(print_r($event->getErrors(), true));
+			}
 
 			// Gaat niet altijd goed ja/nee ea
+			$eventFacilities = [];
 			foreach ($facilities as $facility) {
 				$objectFacility	= RecreationObjectFacility::findOne($facility['facility_id']);
 				if (!empty($objectFacility)) {
 					$eventFacility					= new RecreationEventsFacility();
+					$eventFacility->setEvent($event);
 					$eventFacility->event_id		= $eventId;
 					$eventFacility->facility_id		= $facility['facility_id'];
 					$eventFacility->conn_amount		= $facility['amount'];
-					$eventFacility->conn_excl		= $objectFacility->getExclusive(true);
-					$eventFacility->conn_vat		= $objectFacility->getVatAmount(true);
+					$eventFacility->conn_excl		= 0;//$objectFacility->getExclusive(true);
+					$eventFacility->conn_vat		= 0;//$objectFacility->getVatAmount(true);
+
+					$eventFacilities[]  = $eventFacility;
+
+					if (!$eventFacility->save()) {
+						throw new ServerErrorHttpException('Kon faciliteit niet opslaan '.print_r($eventFacility->getErrors(), true));
+					}
+
+					// Prijzen opnieuw berekenen adhv event nachten/personen
+					$eventFacilityPrice	= $eventFacility->getPrice();
+					$eventFacility->conn_excl		= $eventFacilityPrice->getExclusive(true);
+					$eventFacility->conn_vat		= $eventFacilityPrice->getVatAmount(true);
 
 					if (!$eventFacility->save()) {
 						throw new ServerErrorHttpException('Kon faciliteit niet opslaan '.print_r($eventFacility->getErrors(), true));
 					}
 				}
 			}
-			// setFacilities // TODO
+			$event->setFacilities($eventFacilities);
 
 			// TODO werkt nog niet
 			$productOrder	= 0;
-
-			$extras = ArrayHelper::merge($extras, RecreationBookingController::getExtras($object->objectType, $rentalType, $event->getAmountNights(), $event->event_amount_persons, $package));
+			$eventProducts = [];
+			$extras = ArrayHelper::merge($extras, RecreationBookingController::getExtras($object->objectType, $rentalType, $event->getAmountNights(), $event->event_amount_persons, $package, $eventCompositions, 'website', $event->getPrice()));
 			foreach ($extras AS $extra) {
 				/** @var Products $objectExtra */
 				$objectExtra = Products::findOne($extra['art_id']);
@@ -673,20 +742,46 @@ class RecreationEventController extends Rest {
 					$eventProduct->product_excl				= $extra['excl'] 		?? $objectExtraPrice->getExclusive(true);
 					$eventProduct->product_vat				= $extra['vat'] 		?? $objectExtraPrice->getVatAmount();
 					$eventProduct->product_per				= $extra['per'] 		?? 'p.s.';
-					$eventProduct->product_per				= $extra['from'] 		?? null;
-					$eventProduct->product_per				= $extra['till'] 		?? null;
-					$eventProduct->product_per				= $extra['from_type'] 	?? null;
+					$eventProduct->product_from				= $extra['from'] 		?? null;
+					$eventProduct->product_till				= $extra['till'] 		?? null;
+					$eventProduct->product_from_type		= $extra['from_type'] 	?? null;
 					$eventProduct->product_bail				= $extra['bail'] 		? 'ja' : 'nee';
-					$eventProduct->product_per				= $extra['per'] 		?? 'p.s.';
 					$eventProduct->product_discount			= 0;
 					$eventProduct->product_order			= $productOrder++;
 					$eventProduct->product_createdate		= new Expression('NOW()');
 					$eventProduct->product_createuser		= $userId;
 					$eventProduct->product_changedate		= new Expression('NOW()');
 					$eventProduct->product_changeuser		= $userId;
+
+					$eventProducts[] = $eventProduct;
+
 					if (!$eventProduct->save()) {
-						throw new ServerErrorHttpException('Kon facturatieregel niet opslaan');
+						throw new ServerErrorHttpException('Kon facturatieregel niet opslaan '.print_r($eventProduct->getErrors(), true));
 					}
+				}
+			}
+			$event->setObjectExtras($eventProducts);
+
+
+			/** @var RecreationEventsFacility $eventFacility */
+			foreach ($eventFacilities as $eventFacility) {
+				$eventFacilityPrice	= $eventFacility->getPrice();
+				$eventFacility->conn_excl		= $eventFacilityPrice->getExclusive(true);
+				$eventFacility->conn_vat		= $eventFacilityPrice->getVatAmount(true);
+
+				if (!$eventFacility->save()) {
+					throw new ServerErrorHttpException('Kon faciliteit niet opslaan '.print_r($eventFacility->getErrors(), true));
+				}
+			}
+
+			/** @var RecreationEventsProducts $eventFacility */
+			foreach ($eventProducts as $eventProduct) {
+				$objectExtraPrice	= $eventProduct->getPrice();
+				$eventProduct->product_excl				= $objectExtraPrice->getExclusive(true);
+				$eventProduct->product_vat				= $objectExtraPrice->getVatAmount();
+
+				if (!$eventProduct->save()) {
+					throw new ServerErrorHttpException('Kon facturatieregel niet opslaan '.print_r($eventProduct->getErrors(), true));
 				}
 			}
 
@@ -776,38 +871,38 @@ class RecreationEventController extends Rest {
 			$transaction->commit();
 
 
-			$createInvoiceFinal	= EO::param('recreation_event_create_invoice_final');
-			if(!empty($generate_invoices) && (bool)$generate_invoices === true) {
-				$eoWsUrl			= EO::param('eo_ws_url');
-				$apiUsername		= $user->identity->user_name;
-				$apiPassword		= $user->identity->user_pass;
-				$makeFinale			= (!empty($createInvoiceFinal) && $createInvoiceFinal === true);
-
-				if(!empty($eoWsUrl) && !empty($apiUsername) && !empty($apiPassword)){
-					ini_set('soap.wsdl_cache_enabled', 0);
-					$client 		= new SoapClient($eoWsUrl.'?wsdl');
-					$client->__setLocation($eoWsUrl);
-					try {
-						$session	= $client->{'eoWSLogin.login'}($apiUsername, $apiPassword, EO::param('company_id'));
-
-						try {
-							$createInvoice	= $client->{'eoWSRecreationEventInvoiceCreate.createInvoice'}(
-								$session->sessionid,
-								$eventId,
-								$makeFinale
-							);
-
-							if ($createInvoice === false) {
-								throw new ServerErrorHttpException('Kon facturen niet aanmaken');
-							}
-						} catch(SoapFault $e) {
-							throw new ServerErrorHttpException('Fout bij aanmaken facturen: '.$eventId.' '.$e->getMessage());
-						}
-					} catch(SoapFault $e) {
-						throw new ServerErrorHttpException('Fout bij inloggen voor aanmaken facturen: '.$e->getMessage());
-					}
-				}
-			}
+//			$createInvoiceFinal	= EO::param('recreation_event_create_invoice_final');
+//			if(!empty($generate_invoices) && (bool)$generate_invoices === true) {
+//				$eoWsUrl			= EO::param('eo_ws_url');
+//				$apiUsername		= $user->identity->user_name;
+//				$apiPassword		= $user->identity->user_pass;
+//				$makeFinale			= (!empty($createInvoiceFinal) && $createInvoiceFinal === true);
+//
+//				if(!empty($eoWsUrl) && !empty($apiUsername) && !empty($apiPassword)){
+//					ini_set('soap.wsdl_cache_enabled', 0);
+//					$client 		= new SoapClient($eoWsUrl.'?wsdl');
+//					$client->__setLocation($eoWsUrl);
+//					try {
+//						$session	= $client->{'eoWSLogin.login'}($apiUsername, $apiPassword, EO::param('company_id'));
+//
+//						try {
+//							$createInvoice	= $client->{'eoWSRecreationEventInvoiceCreate.createInvoice'}(
+//								$session->sessionid,
+//								$eventId,
+//								$makeFinale
+//							);
+//
+//							if ($createInvoice === false) {
+//								throw new ServerErrorHttpException('Kon facturen niet aanmaken');
+//							}
+//						} catch(SoapFault $e) {
+//							throw new ServerErrorHttpException('Fout bij aanmaken facturen: '.$eventId.' '.$e->getMessage());
+//						}
+//					} catch(SoapFault $e) {
+//						throw new ServerErrorHttpException('Fout bij inloggen voor aanmaken facturen: '.$e->getMessage());
+//					}
+//				}
+//			}
 		} catch (\Exception $e) {
 			$transaction->rollBack();
 			throw $e;
@@ -839,3 +934,4 @@ class RecreationEventController extends Rest {
 	 */
 	public function actionGuestsAdd($id, $relation_id) {}
 }
+;
