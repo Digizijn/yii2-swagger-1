@@ -1,0 +1,374 @@
+<html>
+<head>
+	<title>EveryOffice API Demo</title>
+	<!--<script src="https://code.jquery.com/jquery-3.1.1.min.js" integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8=" crossorigin="anonymous"></script>-->
+    <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" integrity="sha256-KM512VNnjElC30ehFwehXjx1YCHPiQkOPmqnrWtpccM=" crossorigin="anonymous"></script>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.css" integrity="sha256-rByPlHULObEjJ6XQxW/flG2r+22R5dKiAoef+aXWfik=" crossorigin="anonymous" />
+
+	<script src="/swagger-client.js"></script>
+
+
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+</head>
+<body style="padding: 50px;">
+	<h1 style="font-size: 15px;">EveryOffice API Demo</h1>
+	<div class="input"><span>Username: </span><input placeholder="username" id="input_username" name="username" value="testapi" type="text"/></div>
+	<div class="input"><span>Password: </span><input placeholder="password" id="input_password" name="password" value="#apitest!" type="text"/></div>
+
+	<br /><br />
+	<div id="objecttypes">
+		<h4>Objecttype</h4>
+		<select>
+			<option value="empty"></option>
+		</select>
+		<img src="/images/noimage.png" id="objecttype_image" style="display: block; width: 250px">
+	</div>
+
+	<div id="composition">
+		<h4>Samenstelling</h4>
+		<ul></ul>
+	</div>
+
+	<div id="facilities">
+		<h4>Faciliteiten</h4>
+		<ul></ul>
+	</div>
+
+	<div id="preference">
+		<h4>Voorkeur</h4>
+		<ul></ul>
+	</div>
+
+	<div id="nights">
+		<h4>Nachten</h4>
+		<select>
+		</select>
+	</div>
+
+	<div id="arrival">
+		<h4>Aankomst</h4>
+		<input type="text" id="datepicker" />
+
+		<!-- TODO -->
+		<div class="datepicker-legenda">
+			<ul>
+				<li class="header">Legenda</li>
+				<li class="selected">Geselecteerde dag</li>
+				<li class="arrivaldate">Aankomst mogelijk</li>
+				<li class="available">Beschikbaar</li>
+				<li class="unavailable">Niet beschikbaar</li>
+			</ul>
+		</div>
+	</div>
+
+	<div id="objects">
+		<h4>Objecten</h4>
+		<ul>
+		</ul>
+	</div>
+
+	<div id="package">
+		<h4>Arrangement</h4>
+		<select>
+		</select>
+	</div>
+
+	<div>
+		<div id="price"></div>
+	</div>
+
+	<script>
+		$(document).ready(function() {
+			var $objecttypesDiv 	= $("#objecttypes");
+			var $objecttypes 		= $objecttypesDiv.find("select");
+			var $objecttypesImg		= $objecttypesDiv.find("img");
+			var $compositionsDiv	= $("#composition");
+			var $compositions 		= $compositionsDiv.find("ul");
+			var $objectsDiv			= $("#objects");
+			var $objects 			= $objectsDiv.find("ul");
+			var $facilitiesDiv 		= $("#facilities");
+			var $facilities 		= $facilitiesDiv.find("ul");
+			var $arrivalDiv 		= $("#arrival");
+			var $arrival		 	= $arrivalDiv.find("input");
+			var $nightsDiv 			= $("#nights");
+			var $nights		 		= $nightsDiv.find("select");
+			var $packageDiv			= $("#package");
+			var $packages 			= $packageDiv.find("select");
+			var $price				= $("#price");
+
+			var swagger = new SwaggerClient({
+				url: "/documentation.json",
+				usePromise: true,
+				authorizations : {
+					easyapi_basic: new SwaggerClient.PasswordAuthorization('testapi', '#apitest!')
+				}
+			}).then(function(client) {
+				client.objecttypes.all({expand: "images"})
+					.then(function(objecttypes) {
+						$objecttypes.empty();
+
+						$(objecttypes.obj).each(function(i, objecttype){
+							$objecttypes.append(
+								$("<option />")
+									.val(objecttype.type_id)
+									.text(objecttype.type_name)
+							);
+						});
+					});
+
+
+				$objecttypes.on("change", function() {
+					client.objecttypes.one({id: $objecttypes.val(), expand: "images"})
+						.then(function(objecttype) {
+							$objecttypesImg.attr("src", (objecttype.obj.images.length > 0 ? objecttype.obj.images[0].url : '/images/noimage.png'));
+						});
+
+					client.objecttypes.composition({id: $objecttypes.val()})
+						.then(function(compositions) {
+							$compositions.html("");
+							$(compositions.obj).each(function(i, composition){
+								$item = $("<li />")
+									.append(
+										"<input type=\"number\" min=\"0\" />" +
+										"<span>" + composition.composition_description + "(" + composition.composition_min_age + " - " + composition.composition_max_age + " jaar)</span>"
+									);
+
+								$compositions.append(
+									$item
+								);
+							});
+						});
+
+					client.objecttypes.facilities({id: $objecttypes.val()})
+						.then(function(facilities) {
+							$facilities.html("");
+							$(facilities.obj).each(function(i, facility){
+								$facilities.append(
+									"<li>" +
+										"<input type=\"checkbox\" value=\"" + facility.facility_id + "\" />" +
+										"<span>" + facility.facility_name + "</span>"+
+									"</li>"
+								);
+							});
+						});
+
+					client.objecttypes.objects({id: $objecttypes.val()})
+						.then(function(objects) {
+							$objects.html("");
+
+							$(objects.obj).each(function(i, object){
+								$objects.append(
+									"<li>" +
+										"<input type=\"radio\" value=\"" + object.object_id + "\" disabled />" +
+										"<span>" + object.object_name + "</span>"+
+									"</li>"
+								);
+							});
+						});
+
+					client.booking.nights({type_id: $objecttypes.val()})
+						.then(function(nights) {
+							$nights.empty();
+							$(nights.obj).each(function(i, night){
+								$nights.append(
+									$("<option />")
+										.val(i)
+										.text(night)
+								);
+							});
+						});
+				});
+
+
+				var updatePrice = function(objecttype, from, till, min_nights, max_nights, source) {
+					$price.html("");
+					client.booking.pricing({
+						type_id: objecttype,
+						arrival: from,
+						departure: till,
+						min_nights: min_nights,
+						max_nights: max_nights,
+						source: source
+					}).then(function(pricing) {
+						if (typeof pricing.obj !== undefined && typeof pricing.obj[from] !== undefined && pricing.obj[from].length > 0) {
+							var currPrice = pricing.obj[from][0];
+							var totalPrice = parseFloat(currPrice.price);
+
+							$price.append($("<span class=\"euro\">&euro; " + currPrice.price + "</span>"));
+							$(currPrice.products).each(function(){
+								$price.append($("<div>" + this.description + "<span class=\"euro\">&euro; " + (this.excl + this.vat) + "</span></div>"));
+								totalPrice += parseFloat((this.excl + this.vat));
+							});
+							$price.append($("<span class=\"total-price euro\">&euro; " + totalPrice + "</span>"));
+						}
+					});
+				};
+
+				var now = new Date();
+				var yrs3 = new Date();
+					yrs3.setFullYear(yrs3.getFullYear()+3);
+
+				$( "#datepicker" ).datepicker({
+					minDate: now,
+					maxDate: yrs3,
+					dateFormat: 'yy-mm-dd',
+					changeMonth: true,
+					changeYear: true,
+					onSelect: function() {
+						// Trigger change
+						// TODO
+
+					},
+					beforeShowDay: function(date) {
+						var currDate		= jQuery.datepicker.formatDate("yy-mm-dd", date);
+						var validDays		= []; // TODO ["'.implode('","', $availableDates).'"];
+						var blockedDates	= []; // TODO ["'.implode('","', $blockedDates).'"];
+
+						if($.inArray(currDate, validDays) != -1) {
+							return [true, "arrivaldate", "Aankomst mogelijk"];
+						} else {
+							if($.inArray(currDate, blockedDates) != -1) {
+								return [false, "unavailable", "Niet beschikbaar"];
+							} else {
+								return [false, "available", "Beschikbaar"];
+							}
+						}
+					},
+					onChangeMonthYear: function(year, month, dp) {
+						$(".pricesummaryloader").show();
+
+						var nights = $nights.val();
+						client.booking.availability({
+							arrival:	year + "-" + month + "-" + "01", // TODO
+							departure:	year + "-" + month + "-" + "31", // TODO datum 1e tot laatste vd maand
+							type_id:	$objecttypes.val(),
+							nights:		nights,
+							packages:	$packages.val(),
+							rental:		[] // TODO '.implode(',', $recreationBookForm->rentalIDs).'
+						})
+						.then(function(availibilities) {
+							var validDays = [];
+							$(availibilities.obj).each(function(){
+								validDays = validDays.concat(this.availability.filter(function (item) {
+									return validDays.indexOf(item) < 0;
+								}));
+							});
+
+//								if(typeof data.available !== "undefined" && typeof data.blocked !== "undefined"){
+							var $dp = $("#"+dp.id);
+							var arrivalDate = validDays.length > 0 ? validDays[0] : year + "-" + month + "-" + "01";
+
+							$dp.datepicker("setDate", arrivalDate);
+							$arrival.val(arrivalDate).trigger("change");
+
+							var departeDate = (new Date(arrivalDate));
+							departeDate.setDate(departeDate.getDate() + 1);
+
+							updatePrice($objecttypes.val(), arrivalDate, jQuery.datepicker.formatDate("yy-mm-dd", departeDate), nights, nights);
+
+							$dp.datepicker("option", {
+								beforeShowDay:	function(date){
+									var currDate		= jQuery.datepicker.formatDate("yy-mm-dd", date);
+									var blockedDates	= []; // TODO
+
+									if($.inArray(currDate, validDays) != -1) {
+										return [true, "arrivaldate", "Aankomst mogelijk"];
+									} else {
+										if($.inArray(currDate, blockedDates) != -1) {
+											return [false, "unavailable", "Niet beschikbaar"];
+										} else {
+											return [false, "available", "Beschikbaar"];
+										}
+									}
+								}
+							});
+//								}
+
+//							setTimeout(function(){
+//								$(".pricesummaryloader").hide();
+//							}, 6700);
+						});
+
+//						error:	function(){
+//							setTimeout(function(){
+//								$(".pricesummaryloader").hide();
+//							}, 500);
+//						}
+					}
+				});
+			});
+
+//			getObjectTypes();
+		});
+
+
+//		function doRequest(url, successcallback){
+//			var username = $('#input_username').val();
+//			var password = $('#input_password').val();
+//			if (username && username.trim() != "" && password && password.trim() != "") {
+//				$.ajax({
+//					method: "GET",
+//					beforeSend: function (xhr){
+//						xhr.setRequestHeader ("Authorization", "Basic " + btoa(username + ":" + password));
+//					},
+//			  		url: url
+//				}).done(successcallback)
+//			}
+//		}
+//
+//		function getFacilitiesByObjectTypeId(id){
+//			var el = $("#facilities");
+//			el.html("");
+//			if(id && id != "empty"){
+//				var url = "http://dev.api-2.count-it.nl/recreation/objecttypes/"+id+"/facilities";
+//				doRequest(url, function(data){
+//					el.append("<br /><span><b>Faciliteiten</b></span>");
+//					el.append("<ul>");
+//					$.each(data, function(i, e){
+//						el.append("<li>" + e.facility_name + "</li>");
+//					});
+//				});
+//				el.append("</ul>");
+//			}
+//		}
+//
+//		function getObjectsByObjectTypeId(id){
+//			var el = $("#objects");
+//			el.html("");
+//			if(id && id != "empty"){
+//				var url = "http://dev.api-2.count-it.nl/recreation/objects?type_id="+id;
+//				doRequest(url, function(data){
+//					el.append("<br /><span><b>Objecten</b></span>");
+//					el.append("<ul>");
+//					$.each(data, function(i, e){
+//						el.append("<li>" + e.object_name + "</li>");
+//					});
+//				});
+//				el.append("</ul>");
+//			}
+//		}
+//
+//		function getObjectTypes(){
+//			var url = "http://dev.api-2.count-it.nl/recreation/objecttypes";
+//			var el = $("#objecttypes");
+//			doRequest(url, function(data){
+//				var objts = new Array();
+//				$.each(data, function(i, e){
+//					objts.push(e);
+//				});
+//				$.each(objts, function(i, e){
+//					el.append("<option class='objecttype' value='" + e.type_id + "'>" + e.type_name + "</option>");
+//				});
+//				el.change(function(){
+//					var id = el.val();
+//					getFacilitiesByObjectTypeId(id);
+//					getObjectsByObjectTypeId(id);
+//				});
+//			});
+//		}
+	</script>
+</body>
+</html>

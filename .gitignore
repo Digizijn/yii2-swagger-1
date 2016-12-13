@@ -35,3 +35,4 @@ git
 robots.txt
 
 /web/assets/
+tests/_output/*

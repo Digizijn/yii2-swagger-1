@@ -1,0 +1,32 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Retreive recreation objects",
+        "title": "Recreation objects",
+        "version": "1.0.0"
+    },
+    "host": "dev.api-2.count-it.nl",
+    "basePath": "\/api",
+    "tags": [],
+    "schemes": ["https"],
+    "paths": {
+        "$ref": "http://dev.api-2.count-it.nl/recreation/objects/swagger.json#/paths/"
+	},
+    "definitions": {
+        "ApiResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

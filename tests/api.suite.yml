@@ -1,0 +1,12 @@
+class_name: ApiTester
+
+modules:
+    enabled:
+        - REST:
+            url: http://dev.api.everyoffice.nl
+            depends: PhpBrowser
+            part: Json
+        - PhpBrowser:
+            url: http://dev.api.everyoffice.nl
+            auth: ["testapi", "#apitest!"]
+        - \Helper\Api

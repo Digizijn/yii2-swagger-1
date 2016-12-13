@@ -19,6 +19,11 @@ actor: Tester
 #            - ../views/*
 #            - ../web/*
 #            - ../tests/*
+modules:
+   enabled:
+       - REST:
+           depends: PhpBrowser
+           url: 'http://http://dev.api-2.count-it.nl/'
 paths:
     tests: codeception
     log: codeception/_output
@@ -29,8 +34,9 @@ settings:
     suite_class: \PHPUnit_Framework_TestSuite
     memory_limit: 1024M
     log: true
+    shuffle: true
     colors: true
 config:
     # the entry script URL (with host info) for functional and acceptance tests
     # PLEASE ADJUST IT TO THE ACTUAL ENTRY SCRIPT URL
-    test_entry_url: http://localhost:8080/index-test.php
+    test_entry_url: http://dev.api-2.count-it.nl/index-test.php
