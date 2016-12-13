@@ -18,14 +18,17 @@
 
     "repositories" : [
   		{"type": "git", "url": "git@bitbucket.org:digizijn/framework.git"},
-        {"type": "vcs", "url": "https://github.com/mobidev-php/yii2-swagger.git"},
-	  	{"type": "git", "url": "https://github.com/Digizijn/yii2-swagger-api.git"},
-	  	{"type": "git", "url": "https://github.com/Digizijn/yii2-swagger-1.git"}
+        {
+            "type": "vcs",
+            "url": "https://github.com/mobidev-php/yii2-swagger.git"
+        },
+	  	{"type": "git", "url": "https://github.com/Digizijn/yii2-swagger-api.git"}
+
 	],
 
 	"require": {
 	  "php": ">=5.4.0",
-	  "yiisoft/yii2": ">=2.0.5",
+	  "yiisoft/yii2": "2.0.10",
 	  "yiisoft/yii2-swiftmailer": "*",
 	  "digizijn/framework": "dev-master",
 	  "mobidev/yii2-swagger": "dev-master",

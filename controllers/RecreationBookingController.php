@@ -1702,7 +1702,7 @@ class RecreationBookingController extends Rest {
 		$event->relation_id						= $relation_id;
 		$event->state_id						= $optionState->state_id;
 //		$event->event_reservation_nr			= RecreationEvents::nextReservationNr($arrivalDate);
-		$event->event_reservation_nr			= '';
+		$event->event_reservation_nr			= 0;
 		$event->event_arrivaldate				= $arrivalDate->format('Y-m-d').' '.$checkin;
 		$event->event_departuredate				= $departureDate->format('Y-m-d').' '.$checkout;
 		$event->event_objectprice_exclusive		= 0;
