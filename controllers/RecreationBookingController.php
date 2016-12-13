@@ -531,7 +531,7 @@ class RecreationBookingController extends Rest {
 										$rental,
 										$rentalPeriod,
 										max($min_nights, 1),
-										min($max_nights, 365),  // Binnen periode blijven
+										min($max_nights, 365),  // Binnen periode blijven // TODO $startDate->diff($enddate)->format('%a')
 										$startDate
 									);
 
@@ -1701,7 +1701,8 @@ class RecreationBookingController extends Rest {
 		$event->rental_id						= $object->rentalConnection[0]->rental_id;  // TODO
 		$event->relation_id						= $relation_id;
 		$event->state_id						= $optionState->state_id;
-		$event->event_reservation_nr			= RecreationEvents::nextReservationNr($arrivalDate);
+//		$event->event_reservation_nr			= RecreationEvents::nextReservationNr($arrivalDate);
+		$event->event_reservation_nr			= '';
 		$event->event_arrivaldate				= $arrivalDate->format('Y-m-d').' '.$checkin;
 		$event->event_departuredate				= $departureDate->format('Y-m-d').' '.$checkout;
 		$event->event_objectprice_exclusive		= 0;

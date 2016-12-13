@@ -116,25 +116,25 @@ return [
 
 
 
-//		'cache' => [ // TODO Verplaatsen naar main config
-//			'class' => 'yii\redis\Cache',
-//		],
-//
-//		'session' => [ // TODO Verplaatsen naar main config
-//			'class' => 'yii\redis\Session',
-//		],
-//
-//		'redis' => [
-//			'class' 	=> 'yii\redis\Connection',
-//			'hostname' 	=> 'localhost',
-//			'port' 		=> 6379,
-//			'database' 	=> 0, // TODO serializer igbinary
-//		],
-//
-//
-//		'filecache'	=> [
-//			'class'		=> \yii\caching\FileCache::className()
-//		],
+		'cache' => [ // TODO Verplaatsen naar main config
+			'class' => 'yii\redis\Cache',
+		],
+
+		'session' => [ // TODO Verplaatsen naar main config
+			'class' => 'yii\redis\Session',
+		],
+
+		'redis' => [
+			'class' 	=> 'yii\redis\Connection',
+			'hostname' 	=> 'localhost',
+			'port' 		=> 6379,
+			'database' 	=> 0, // TODO serializer igbinary
+		],
+
+
+		'filecache'	=> [
+			'class'		=> \yii\caching\FileCache::className()
+		],
 
 
 		'i18n' => [

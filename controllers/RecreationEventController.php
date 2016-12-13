@@ -31,6 +31,7 @@ use yii\base\Exception;
 use yii\db\Expression;
 use yii\helpers\ArrayHelper;
 use yii\helpers\Url;
+use yii\helpers\VarDumper;
 use yii\web\BadRequestHttpException;
 use yii\web\NotFoundHttpException;
 use yii\web\ServerErrorHttpException;
@@ -312,12 +313,12 @@ class RecreationEventController extends Rest {
 		if (!empty($rental_ids)) {
 			$event->rental_id					= $rental_ids[0];
 		}
+
 		$event->setAllowedRentalIDs($rental_ids);
 		$event->setArrivalDate($arrivalDate);
 		$event->setDepartureDate($departureDate);
 		$event->setEventRelation($relation);
 		$event->event_amount_persons			= 2;
-
 		$event->setPeriodPrices(false);
 
 		$prices = $event->getPeriodPrices();
@@ -519,6 +520,8 @@ class RecreationEventController extends Rest {
 			if (!empty($event) && $event->state_id !== $optionState->state_id) {
 				throw new BadRequestHttpException('Blokkering/optie is al verlopen of gebruikt');
 			}
+
+//			$event->event_reservation_nr = RecreationEvents::nextReservationNr($arrivalDate);
 		} else {
 			$event = new RecreationEvents();
 			$event->event_createdate				= new Expression('NOW()');
