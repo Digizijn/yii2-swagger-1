@@ -18,12 +18,9 @@
 
     "repositories" : [
   		{"type": "git", "url": "git@bitbucket.org:digizijn/framework.git"},
-        {
-            "type": "vcs",
-            "url": "https://github.com/mobidev-php/yii2-swagger.git"
-        },
-	  	{"type": "git", "url": "https://github.com/Digizijn/yii2-swagger-api.git"}
-
+        {"type": "vcs", "url": "https://github.com/mobidev-php/yii2-swagger.git"},
+	  	{"type": "git", "url": "https://github.com/Digizijn/yii2-swagger-api.git"},
+	  	{"type": "git", "url": "https://github.com/Digizijn/yii2-swagger-1.git"}
 	],
 
 	"require": {
